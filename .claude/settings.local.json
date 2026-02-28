@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command:*)",
+      "Bash(npx electron:*)",
+      "Bash(dir:*)",
+      "Bash(node -e:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:docs.vidrush.ai)"
+    ]
+  }
+}

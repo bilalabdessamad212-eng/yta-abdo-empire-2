@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Windows reserved device name (can't be deleted)
+nul
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ignore big/generated
+node_modules/
+output/
+logs/
+temp/
+.env
+
+node_modules/
+output/
+temp/
+logs/
+.env
+*.mp4
+node_modules/
+output/
+temp/
+logs/
+.env
+*.mp4

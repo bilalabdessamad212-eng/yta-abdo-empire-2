@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YTA ABDO EMPIRE</title>
+    <link rel="stylesheet" href="css/style.css?v=15">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1><img src="../assets/icon.png" alt="" class="app-logo" onerror="this.src='../assets/icon.ico'">YTA ABDO EMPIRE <span id="project-name-label" class="project-name-label"></span></h1>
+            <div class="header-actions">
+                <div class="notif-center" id="notif-center">
+                    <button class="notif-bell" id="notif-bell" title="Notifications">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        <span class="notif-badge hidden" id="notif-badge">0</span>
+                    </button>
+                    <div class="notif-dropdown hidden" id="notif-dropdown">
+                        <div class="notif-dropdown-header">
+                            <span>Notifications</span>
+                            <button class="notif-clear" id="notif-clear" title="Clear all">Clear</button>
+                        </div>
+                        <div class="notif-list" id="notif-list">
+                            <div class="notif-empty">No notifications yet</div>
+                        </div>
+                    </div>
+                </div>
+                <button id="btn-refresh" class="btn btn-secondary" title="Refresh app (F5)">Refresh</button>
+                <button id="btn-open-project" class="btn btn-secondary" title="Open existing project">Open Project</button>
+                <button id="btn-new" class="btn btn-secondary">New Project</button>
+                <select id="renderer-select" title="Render engine" style="padding:6px 8px;border-radius:6px;background:#2a2a3e;color:#fff;border:1px solid #444;font-size:12px;cursor:pointer;">
+                    <option value="ffmpeg">FFmpeg (Fast + Close Quality)</option>
+                    <option value="remotion">Remotion (Full)</option>
+                </select>
+                <button id="btn-render" class="btn btn-primary">Render Video</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel - Controls -->
+            <aside class="left-panel" id="left-panel">
+                <div class="panel-section">
+                    <h3>📁 Import Audio</h3>
+                    <div class="drop-zone" id="drop-zone">
+                        <p>Drag & drop your voiceover here</p>
+                        <p class="small">or click to browse</p>
+                        <input type="file" id="file-input" accept=".mp3,.wav" hidden>
+                    </div>
+                    <div id="audio-info" class="audio-info hidden">
+                        <span id="audio-name"></span>
+                        <button id="btn-remove-audio" class="btn-icon">✕</button>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🤖 AI Settings</h3>
+                    <label>AI Provider:</label>
+                    <select id="ai-provider">
+                        <option value="ollama">Ollama (Free, Local)</option>
+                        <option value="deepseek">DeepSeek (Cheap)</option>
+                        <option value="qwen">Qwen / Alibaba (Cheap)</option>
+                        <option value="openai">OpenAI GPT</option>
+                        <option value="claude">Claude API</option>
+                        <option value="nvidia">NVIDIA (Qwen 3.5)</option>
+                        <option value="groq">Groq (Ultra-Fast)</option>
+                        <option value="gemini">Google Gemini</option>
+                    </select>
+                    <div id="ollama-model-row" style="margin-top:6px; display:none;">
+                        <label>Ollama Model:</label>
+                        <select id="ollama-model">
+                            <option value="gemma3:12b">Gemma3 12B (Best, 8GB)</option>
+                            <option value="gemma3:4b">Gemma3 4B (Light, 3GB)</option>
+                            <option value="llama3.2:latest">Llama 3.2 (Fast, 2GB)</option>
+                        </select>
+                        <label style="margin-top:4px">Vision Model:</label>
+                        <select id="ollama-vision-model">
+                            <option value="llava">LLaVA (Standard, 4.7GB)</option>
+                            <option value="moondream">Moondream (Light, 1.7GB)</option>
+                        </select>
+                    </div>
+                    <label style="margin-top:8px">AI Instructions:</label>
+                    <textarea id="ai-instructions" rows="3" placeholder="e.g., Use charts for statistics, cinematic style, prefer kinetic text for quotes..."></textarea>
+                    <small class="ai-instructions-hint">Guide how AI picks footage, graphics &amp; effects</small>
+                </div>
+
+                <div class="panel-section">
+                    <h3>⚙️ Build Settings</h3>
+                    <label>Quality Tier:</label>
+                    <select id="build-quality">
+                        <option value="standard" selected>Standard (Balanced)</option>
+                        <option value="mini">Mini (Fast, Images Only)</option>
+                        <option value="pro">Pro (Best Quality)</option>
+                    </select>
+                    <small style="display:block; margin-top:4px; color:#888">Controls scene count, transitions, MG density</small>
+
+                    <label style="margin-top:12px">Video Format:</label>
+                    <select id="build-format">
+                        <option value="auto" selected>Auto (AI Decides)</option>
+                        <option value="documentary">Documentary</option>
+                        <option value="listicle">Listicle</option>
+                    </select>
+                    <small style="display:block; margin-top:4px; color:#888">Affects pacing and transition style</small>
+
+                    <label style="margin-top:12px">Theme / Style:</label>
+                    <select id="build-theme">
+                        <option value="auto" selected>🤖 Auto (AI Decides)</option>
+                        <option value="tech">🤖 Tech / Cyberpunk</option>
+                        <option value="nature">🌿 Nature Documentary</option>
+                        <option value="crime">🔪 True Crime / Dark</option>
+                        <option value="corporate">💼 Corporate / Professional</option>
+                        <option value="luxury">💎 Luxury / Fashion</option>
+                        <option value="sport">⚽ Sports / Action</option>
+                        <option value="neutral">⚪ Neutral / Balanced</option>
+                    </select>
+                    <small style="display:block; margin-top:4px; color:#888">Controls background, colors, MG style, fonts</small>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🎬 Footage Sources</h3>
+                    <div class="source-toggles">
+                        <label class="source-toggle"><input type="checkbox" id="src-pexels" checked> Pexels</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-pixabay" checked> Pixabay</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-youtube"> YouTube (yt-dlp)</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-news-video"> News Sites (yt-dlp)</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-unsplash" checked> Unsplash</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-google-cse"> Google CSE</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-bing"> Bing</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-duckduckgo" checked> DuckDuckGo</label>
+                        <label class="source-toggle"><input type="checkbox" id="src-google-scrape" checked> Google Images</label>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🎨 Style</h3>
+                    <label>Transitions:</label>
+                    <select id="transition-style">
+                        <option value="random">🎲 Random Mix</option>
+                        <option value="auto">🤖 Auto (Theme-Based)</option>
+                        <optgroup label="Smooth / Cinematic">
+                            <option value="fade">◐ Fade</option>
+                            <option value="dissolve">◑ Dissolve</option>
+                            <option value="crossfade">◑ Cross Fade</option>
+                            <option value="blur">◎ Blur</option>
+                            <option value="crossBlur">◎ Cross Blur</option>
+                            <option value="luma">▦ Luma Fade</option>
+                            <option value="ripple">≋ Ripple</option>
+                            <option value="reveal">◉ Iris Reveal</option>
+                            <option value="morph">◠ Morph</option>
+                            <option value="dreamFade">☁ Dream Fade</option>
+                        </optgroup>
+                        <optgroup label="Energetic / Dynamic">
+                            <option value="slide">→ Slide</option>
+                            <option value="wipe">▸ Wipe</option>
+                            <option value="zoom">⊕ Zoom</option>
+                            <option value="push">⇒ Push</option>
+                            <option value="swipe">⇝ Swipe</option>
+                            <option value="whip">↝ Whip Pan</option>
+                            <option value="bounce">⤳ Bounce</option>
+                            <option value="splitWipe">⫿ Split Wipe</option>
+                            <option value="shutterSlice">▤ Shutter Slice</option>
+                            <option value="zoomBlur">⊛ Zoom Blur</option>
+                        </optgroup>
+                        <optgroup label="Dramatic / Film">
+                            <option value="flash">⚡ Flash</option>
+                            <option value="cameraFlash">📸 Camera Flash</option>
+                            <option value="filmBurn">🔥 Film Burn</option>
+                            <option value="flare">✦ Lens Flare</option>
+                            <option value="lightLeak">☀ Light Leak</option>
+                            <option value="vignetteBlink">◉ Vignette Blink</option>
+                            <option value="shadowWipe">▰ Shadow Wipe</option>
+                            <option value="filmGrain">▩ Film Grain</option>
+                            <option value="ink">◕ Ink Bleed</option>
+                            <option value="directionalBlur">⟿ Directional Blur</option>
+                            <option value="colorFade">◈ Color Fade</option>
+                            <option value="spin">↻ Spin</option>
+                            <option value="prismShift">◇ Prism Shift</option>
+                        </optgroup>
+                        <optgroup label="Glitch / Tech">
+                            <option value="glitch">⚠ Glitch</option>
+                            <option value="pixelate">▩ Pixelate</option>
+                            <option value="mosaic">▧ Mosaic</option>
+                            <option value="dataMosh">⌁ Data Mosh</option>
+                            <option value="scanline">≡ Scanline</option>
+                            <option value="rgbSplit">◈ RGB Split</option>
+                            <option value="static">▣ TV Static</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🔊 Sound Effects</h3>
+                    <label class="source-toggle">
+                        <input type="checkbox" id="sfx-enabled" checked> Auto SFX on transitions
+                    </label>
+                    <div class="setting-row" style="margin-top:8px">
+                        <label>SFX Volume:</label>
+                        <input type="range" id="sfx-volume" min="0" max="1" step="0.05" value="0.35" style="flex:1">
+                        <span id="sfx-volume-label" style="min-width:36px;text-align:right">35%</span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>✨ Motion Graphics</h3>
+                    <label class="source-toggle">
+                        <input type="checkbox" id="mg-enabled" checked> AI Motion Graphics
+                    </label>
+                    <p style="margin:4px 0 0;color:var(--text-secondary, #888);font-size:11px">
+                        Auto-places titles, stats, callouts at key moments
+                    </p>
+                </div>
+
+                <div class="panel-section">
+                    <h3>💬 Subtitles</h3>
+                    <label class="source-toggle">
+                        <input type="checkbox" id="subtitles-enabled"> Burn-in Subtitles
+                    </label>
+                    <p style="margin:4px 0 0;color:var(--text-secondary, #888);font-size:11px">
+                        Renders subtitle text over each scene in the final video
+                    </p>
+                </div>
+
+                <button id="btn-generate" class="btn btn-large btn-primary" disabled>
+                    🚀 Generate Video
+                </button>
+            </aside>
+
+            <!-- Left Resize Handle -->
+            <div class="resize-handle resize-handle-left" id="resize-left"></div>
+
+            <!-- Center - Preview -->
+            <main class="preview-area" id="preview-area">
+                <div class="preview-container" id="preview-container">
+                    <div id="preview-placeholder" class="preview-placeholder">
+                        <p>Preview will appear here</p>
+                        <p class="small">Import audio to get started</p>
+                    </div>
+                    <!-- Multi-track video container (16:9 composition frame) -->
+                    <div id="video-transition-container" class="video-transition-container hidden">
+                        <!-- Background layer (blur duplicate or pattern image, behind all footage) -->
+                        <video id="bg-video" class="bg-media bg-video" muted loop></video>
+                        <img id="bg-image" class="bg-media bg-image" alt="">
+                        <div id="bg-gradient" class="bg-media bg-gradient"></div>
+                        <div id="track-wrapper-1" class="track-wrapper" data-track="video-track-1">
+                            <video id="video-track-1" class="preview-video track-video" data-track="video-track-1" preload="auto"></video>
+                            <video id="video-track-1-b" class="preview-video track-video" data-track="video-track-1" preload="auto"></video>
+                            <img id="img-track-1" class="preview-img track-img" data-track="video-track-1">
+                        </div>
+                        <div id="track-wrapper-2" class="track-wrapper" data-track="video-track-2">
+                            <video id="video-track-2" class="preview-video track-video" data-track="video-track-2" preload="auto"></video>
+                            <video id="video-track-2-b" class="preview-video track-video" data-track="video-track-2" preload="auto"></video>
+                            <img id="img-track-2" class="preview-img track-img" data-track="video-track-2">
+                        </div>
+                        <div id="track-wrapper-3" class="track-wrapper" data-track="video-track-3">
+                            <video id="video-track-3" class="preview-video track-video" data-track="video-track-3" preload="auto"></video>
+                            <video id="video-track-3-b" class="preview-video track-video" data-track="video-track-3" preload="auto"></video>
+                            <img id="img-track-3" class="preview-img track-img" data-track="video-track-3">
+                        </div>
+                        <!-- Full-screen MG preview (V3 charts, timelines, rankings) -->
+                        <div id="mg-v3-preview" class="mg-v3-preview-layer"></div>
+                        <!-- Overlay video preview (downloaded grain, dust, light leaks, bokeh) -->
+                        <video id="overlay-preview" class="overlay-preview-video" muted loop></video>
+                        <!-- Overlay image preview (PNG/JPG overlays like CRT, paper, scanlines) -->
+                        <img id="overlay-preview-img" class="overlay-preview-img" alt="">
+                        <!-- Shared transition elements -->
+                        <video id="video-transition-out" class="preview-video transition-out-video"></video>
+                        <img id="img-transition-out" class="preview-img transition-out-img">
+                        <!-- Motion Graphics overlay -->
+                        <div id="mg-overlay" class="mg-overlay"></div>
+                        <!-- Custom video controls overlaid on frame -->
+                        <div id="video-controls" class="video-controls hidden">
+                            <button id="btn-play" class="control-btn">▶</button>
+                            <div class="time-display">
+                                <span id="current-time-display">0:00</span>
+                                <span>/</span>
+                                <span id="total-time-display">0:00</span>
+                            </div>
+                            <div class="volume-control">
+                                <button id="btn-mute" class="control-btn">🔊</button>
+                                <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1">
+                            </div>
+                            <button id="btn-fullscreen" class="control-btn">⛶</button>
+                        </div>
+                    </div>
+                    <audio id="preview-audio" class="hidden"></audio>
+                </div>
+                <!-- Preview zoom toolbar -->
+                <div class="preview-zoom-bar">
+                    <select id="preview-zoom-select" class="preview-zoom-select">
+                        <option value="fit" selected>Fit</option>
+                        <option value="25">25%</option>
+                        <option value="50">50%</option>
+                        <option value="75">75%</option>
+                        <option value="100">100%</option>
+                        <option value="150">150%</option>
+                        <option value="200">200%</option>
+                    </select>
+                    <span id="preview-zoom-label" class="preview-zoom-label">Fit</span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div id="progress-container" class="progress-container hidden">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <div class="progress-info">
+                        <p id="progress-text">Processing...</p>
+                        <div class="progress-right">
+                            <span id="progress-timer" class="progress-timer"></span>
+                            <button id="btn-cancel" class="btn-cancel" title="Cancel">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Resize Handle -->
+            <div class="resize-handle resize-handle-right" id="resize-right"></div>
+
+            <!-- Right Panel - Scene List + Clip Properties -->
+            <aside class="right-panel" id="right-panel">
+                <!-- Scenes Section (collapsible) -->
+                <div class="panel-section-collapsible" id="scenes-section">
+                    <div class="panel-section-header" data-target="scenes-section">
+                        <span class="panel-section-title">Scenes</span>
+                        <svg class="panel-chevron" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="panel-section-body">
+                        <div id="scene-list" class="scene-list">
+                            <p class="empty-state">No scenes yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Properties Section (collapsible) -->
+                <div class="panel-section-collapsible" id="properties-section">
+                    <div class="panel-section-header" data-target="properties-section">
+                        <span class="panel-section-title" id="properties-title">Properties</span>
+                        <svg class="panel-chevron" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="panel-section-body">
+                        <!-- Clip Properties Panel -->
+                        <div id="clip-properties" class="clip-properties hidden">
+                            <div class="property-row">
+                                <label>Scale</label>
+                                <input type="range" id="prop-scale" class="property-slider" min="0" max="3" step="0.05" value="1">
+                                <input type="text" id="prop-scale-val" class="property-value property-value-input" value="1.00">
+                            </div>
+                            <div class="property-row">
+                                <label>Pos X</label>
+                                <input type="range" id="prop-pos-x" class="property-slider" min="-50" max="50" step="1" value="0">
+                                <input type="text" id="prop-pos-x-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <div class="property-row">
+                                <label>Pos Y</label>
+                                <input type="range" id="prop-pos-y" class="property-slider" min="-50" max="50" step="1" value="0">
+                                <input type="text" id="prop-pos-y-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <div class="property-row">
+                                <label>Volume</label>
+                                <input type="range" id="prop-volume" class="property-slider" min="0" max="1" step="0.05" value="1">
+                                <input type="text" id="prop-volume-val" class="property-value property-value-input" value="100%">
+                            </div>
+                            <div class="property-row">
+                                <label>Background</label>
+                                <select id="prop-background" class="property-select">
+                                    <option value="none">None (Black)</option>
+                                    <option value="blur">Blur (Duplicate)</option>
+                                </select>
+                            </div>
+                            <div class="property-row">
+                                <label>Fit Mode</label>
+                                <select id="prop-fit-mode" class="property-select">
+                                    <option value="cover">Cover (Fill Frame)</option>
+                                    <option value="contain">Contain (Show All)</option>
+                                </select>
+                            </div>
+                            <div class="property-row" id="prop-animate-row" style="display:none">
+                                <label class="source-toggle">
+                                    <input type="checkbox" id="prop-animate" checked> Animate (Ken Burns)
+                                </label>
+                            </div>
+                            <!-- Crop -->
+                            <div class="property-section-label">Crop</div>
+                            <div class="property-row">
+                                <label>Top</label>
+                                <input type="range" id="prop-crop-top" class="property-slider" min="0" max="50" step="1" value="0">
+                                <input type="text" id="prop-crop-top-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <div class="property-row">
+                                <label>Bottom</label>
+                                <input type="range" id="prop-crop-bottom" class="property-slider" min="0" max="50" step="1" value="0">
+                                <input type="text" id="prop-crop-bottom-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <div class="property-row">
+                                <label>Left</label>
+                                <input type="range" id="prop-crop-left" class="property-slider" min="0" max="50" step="1" value="0">
+                                <input type="text" id="prop-crop-left-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <div class="property-row">
+                                <label>Right</label>
+                                <input type="range" id="prop-crop-right" class="property-slider" min="0" max="50" step="1" value="0">
+                                <input type="text" id="prop-crop-right-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <!-- Round Corners -->
+                            <div class="property-section-label">Round Corners</div>
+                            <div class="property-row">
+                                <label>Radius</label>
+                                <input type="range" id="prop-border-radius" class="property-slider" min="0" max="50" step="1" value="0">
+                                <input type="text" id="prop-border-radius-val" class="property-value property-value-input" value="0%">
+                            </div>
+                            <button id="prop-reset" class="prop-reset-btn">Reset Transform</button>
+
+                        </div>
+
+                        <!-- Overlay Properties Panel -->
+                        <div id="overlay-properties" class="clip-properties hidden">
+                            <div class="property-row">
+                                <label>Intensity</label>
+                                <input type="range" id="overlay-intensity" class="property-slider" min="0.05" max="1" step="0.05" value="0.5">
+                                <span id="overlay-intensity-val" class="property-value">50%</span>
+                            </div>
+                            <div class="property-row">
+                                <label>Blend Mode</label>
+                                <select id="overlay-blend" class="property-select">
+                                    <option value="screen">Screen (default)</option>
+                                    <option value="overlay">Overlay</option>
+                                    <option value="multiply">Multiply</option>
+                                    <option value="soft-light">Soft Light</option>
+                                    <option value="hard-light">Hard Light</option>
+                                    <option value="color-dodge">Color Dodge</option>
+                                    <option value="lighten">Lighten</option>
+                                    <option value="normal">Normal</option>
+                                </select>
+                            </div>
+                            <div class="property-row">
+                                <label>Scale</label>
+                                <input type="range" id="overlay-scale" class="property-slider" min="0.5" max="3" step="0.05" value="1">
+                                <span id="overlay-scale-val" class="property-value">1.00</span>
+                            </div>
+                        </div>
+
+                        <!-- MG Properties Panel -->
+                        <div id="mg-properties" class="clip-properties hidden">
+                            <div class="property-row">
+                                <label>Type</label>
+                                <select id="mg-type" class="property-select">
+                                    <optgroup label="Overlay">
+                                        <option value="headline">Headline</option>
+                                        <option value="lowerThird">Lower Third</option>
+                                        <option value="statCounter">Stat Counter</option>
+                                        <option value="callout">Callout</option>
+                                        <option value="focusWord">Focus Word</option>
+                                        <option value="progressBar">Progress Bar</option>
+                                    </optgroup>
+                                    <optgroup label="Full Screen">
+                                        <option value="barChart">Bar Chart</option>
+                                        <option value="donutChart">Donut Chart</option>
+                                        <option value="rankingList">Ranking List</option>
+                                        <option value="timeline">Timeline</option>
+                                        <option value="comparisonCard">Comparison</option>
+                                        <option value="bulletList">Bullet List</option>
+                                        <option value="mapChart">Map</option>
+                                        <option value="articleHighlight">Article Highlight</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="property-row">
+                                <label>Style</label>
+                                <select id="mg-style" class="property-select">
+                                    <option value="clean">Clean</option>
+                                    <option value="bold">Bold</option>
+                                    <option value="minimal">Minimal</option>
+                                    <option value="neon">Neon</option>
+                                    <option value="cinematic">Cinematic</option>
+                                    <option value="elegant">Elegant</option>
+                                </select>
+                            </div>
+                            <div class="property-row" id="mg-map-style-row" style="display:none">
+                                <label>Map Style</label>
+                                <select id="mg-map-style" class="property-select">
+                                    <option value="dark">Dark</option>
+                                    <option value="natural">Natural Earth</option>
+                                    <option value="satellite">Satellite</option>
+                                    <option value="light">Light</option>
+                                    <option value="political">Political</option>
+                                </select>
+                            </div>
+                            <div class="property-row">
+                                <label>Text</label>
+                                <input type="text" id="mg-text" class="property-input" placeholder="Text content">
+                            </div>
+                            <div class="property-row">
+                                <label>Subtext</label>
+                                <input type="text" id="mg-subtext" class="property-input" placeholder="Optional subtext">
+                            </div>
+                            <div class="property-row">
+                                <label>Position</label>
+                                <select id="mg-position" class="property-select">
+                                    <option value="center">Center</option>
+                                    <option value="bottom-left">Bottom Left</option>
+                                    <option value="bottom-right">Bottom Right</option>
+                                    <option value="top">Top</option>
+                                    <option value="center-left">Center Left</option>
+                                </select>
+                            </div>
+                            <div class="property-row">
+                                <label>Duration</label>
+                                <input type="range" id="mg-duration" class="property-slider" min="0.5" max="10" step="0.5" value="3">
+                                <span id="mg-duration-val" class="property-value">3.0s</span>
+                            </div>
+                        </div>
+
+                        <!-- Empty state when no clip selected -->
+                        <div id="properties-empty" class="properties-empty">
+                            <p>Select a clip to edit</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Timeline Resize Handle -->
+        <div class="resize-handle resize-handle-timeline" id="resize-timeline"></div>
+
+        <!-- Timeline -->
+        <footer class="timeline-container" id="timeline-container">
+            <div class="timeline-header">
+                <span>Timeline</span>
+                <span id="timeline-duration">0:00</span>
+            </div>
+            <div id="timeline" class="timeline">
+                <!-- Multi-track timeline -->
+                <div class="timeline-tracks">
+                    <!-- Video Track 1 (Main) -->
+                    <div class="timeline-row">
+                        <div class="track-label">🎬 Video 1</div>
+                        <div class="track-content video-track" id="video-track">
+                            <div class="timeline-empty">Import audio to see timeline</div>
+                        </div>
+                    </div>
+                    <!-- Video Track 2 (B-Roll) -->
+                    <div class="timeline-row">
+                        <div class="track-label">🎥 Video 2</div>
+                        <div class="track-content video-track" id="video-track-2">
+                            <div class="track-empty">B-roll footage</div>
+                        </div>
+                    </div>
+                    <!-- Video Track 3 (Overlays) -->
+                    <div class="timeline-row">
+                        <div class="track-label">🖼️ Video 3</div>
+                        <div class="track-content video-track" id="video-track-3">
+                            <div class="track-empty">Overlays & graphics</div>
+                        </div>
+                    </div>
+                    <!-- Audio Track (Voiceover) -->
+                    <div class="timeline-row">
+                        <div class="track-label">🎙️ Voice</div>
+                        <div class="track-content audio-track" id="audio-track">
+                            <div class="track-empty">Voiceover will appear here</div>
+                        </div>
+                    </div>
+                    <!-- Music Track -->
+                    <div class="timeline-row">
+                        <div class="track-label">🎵 Music</div>
+                        <div class="track-content music-track" id="music-track">
+                            <div class="track-empty">Background music</div>
+                        </div>
+                    </div>
+                    <!-- SFX Track -->
+                    <div class="timeline-row">
+                        <div class="track-label">🔊 SFX</div>
+                        <div class="track-content sfx-track" id="sfx-track">
+                            <div class="track-empty">Sound effects</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Playhead (spans all tracks) -->
+                <div class="playhead" id="playhead"></div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,1684 @@
+{
+  "audio": "bourbun you can trust.mp3",
+  "totalDuration": 55.484063,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "scenes": [
+    {
+      "index": 0,
+      "text": "Over the past year on this channel, we have exposed how the bourbon industry has been quietly betraying the people who built it.",
+      "startTime": 0,
+      "endTime": 6.82,
+      "duration": 6.82,
+      "words": [
+        {
+          "word": "Over",
+          "start": 0,
+          "end": 0.22
+        },
+        {
+          "word": "the",
+          "start": 0.22,
+          "end": 0.36
+        },
+        {
+          "word": "past",
+          "start": 0.36,
+          "end": 0.58
+        },
+        {
+          "word": "year",
+          "start": 0.58,
+          "end": 0.86
+        },
+        {
+          "word": "on",
+          "start": 0.86,
+          "end": 1
+        },
+        {
+          "word": "this",
+          "start": 1,
+          "end": 1.14
+        },
+        {
+          "word": "channel,",
+          "start": 1.14,
+          "end": 1.48
+        },
+        {
+          "word": "we",
+          "start": 1.9,
+          "end": 2.1
+        },
+        {
+          "word": "have",
+          "start": 2.1,
+          "end": 2.22
+        },
+        {
+          "word": "exposed",
+          "start": 2.22,
+          "end": 2.56
+        },
+        {
+          "word": "how",
+          "start": 2.56,
+          "end": 2.9
+        },
+        {
+          "word": "the",
+          "start": 2.9,
+          "end": 3.04
+        },
+        {
+          "word": "bourbon",
+          "start": 3.04,
+          "end": 3.34
+        },
+        {
+          "word": "industry",
+          "start": 3.34,
+          "end": 3.82
+        },
+        {
+          "word": "has",
+          "start": 3.82,
+          "end": 4.3
+        },
+        {
+          "word": "been",
+          "start": 4.3,
+          "end": 4.46
+        },
+        {
+          "word": "quietly",
+          "start": 4.46,
+          "end": 4.86
+        },
+        {
+          "word": "betraying",
+          "start": 4.86,
+          "end": 5.5
+        },
+        {
+          "word": "the",
+          "start": 5.5,
+          "end": 5.58
+        },
+        {
+          "word": "people",
+          "start": 5.58,
+          "end": 5.82
+        },
+        {
+          "word": "who",
+          "start": 5.82,
+          "end": 5.98
+        },
+        {
+          "word": "built",
+          "start": 5.98,
+          "end": 6.22
+        },
+        {
+          "word": "it.",
+          "start": 6.22,
+          "end": 6.46
+        }
+      ],
+      "keyword": "Dark moody distillery interior production line",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "Low-angle cinematic shot of a modern, almost sterile bourbon distillery production line at night, focus on automated machinery, creating a sense of cold, industrial process.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-0.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pexels Videos",
+      "mediaWidth": 1920,
+      "mediaHeight": 1080,
+      "fitMode": "cover",
+      "originalStartTime": 0,
+      "originalEndTime": 6.82,
+      "trackId": "video-track-1"
+    },
+    {
+      "index": 1,
+      "text": "We showed you how conglomerates bought beloved brands, gutted the recipe, lowered the proof, and doubled the price.",
+      "startTime": 6.82,
+      "endTime": 8.309999999999999,
+      "duration": 1.4899999999999984,
+      "words": [
+        {
+          "word": "We",
+          "start": 6.82,
+          "end": 7.12
+        },
+        {
+          "word": "showed",
+          "start": 7.12,
+          "end": 7.32
+        },
+        {
+          "word": "you",
+          "start": 7.32,
+          "end": 7.52
+        },
+        {
+          "word": "how",
+          "start": 7.52,
+          "end": 7.7
+        },
+        {
+          "word": "conglomerates",
+          "start": 7.7,
+          "end": 8.36
+        },
+        {
+          "word": "bought",
+          "start": 8.36,
+          "end": 8.58
+        },
+        {
+          "word": "beloved",
+          "start": 8.58,
+          "end": 8.88
+        },
+        {
+          "word": "brands,",
+          "start": 8.88,
+          "end": 9.4
+        },
+        {
+          "word": "gutted",
+          "start": 9.96,
+          "end": 10.16
+        },
+        {
+          "word": "the",
+          "start": 10.16,
+          "end": 10.3
+        },
+        {
+          "word": "recipe,",
+          "start": 10.3,
+          "end": 10.7
+        },
+        {
+          "word": "lowered",
+          "start": 11.24,
+          "end": 11.38
+        },
+        {
+          "word": "the",
+          "start": 11.38,
+          "end": 11.56
+        },
+        {
+          "word": "proof,",
+          "start": 11.56,
+          "end": 11.8
+        },
+        {
+          "word": "and",
+          "start": 12.34,
+          "end": 12.4
+        },
+        {
+          "word": "doubled",
+          "start": 12.4,
+          "end": 12.64
+        },
+        {
+          "word": "the",
+          "start": 12.64,
+          "end": 12.84
+        },
+        {
+          "word": "price.",
+          "start": 12.84,
+          "end": 13.12
+        }
+      ],
+      "keyword": "Time lapse corporate takeover paperwork mergers acquisitions",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "Time-lapse video of hands quickly stamping corporate documents, legal papers, and financial spreadsheets, symbolizing rapid mergers and acquisitions, with a hint of shadowy figures in the background.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-1.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pixabay Videos",
+      "mediaWidth": 3840,
+      "mediaHeight": 2160,
+      "fitMode": "cover",
+      "originalStartTime": 6.82,
+      "originalEndTime": 8.309999999999999,
+      "trackId": "video-track-1"
+    },
+    {
+      "index": 2,
+      "text": "The comment sections flooded with thousands of angry Americans asking the same question.",
+      "startTime": 15.343333333333332,
+      "endTime": 18.68,
+      "duration": 3.3566666666666674,
+      "words": [
+        {
+          "word": "The",
+          "start": 13.76,
+          "end": 13.94
+        },
+        {
+          "word": "comment",
+          "start": 13.94,
+          "end": 14.22
+        },
+        {
+          "word": "sections",
+          "start": 14.22,
+          "end": 14.72
+        },
+        {
+          "word": "flooded",
+          "start": 14.72,
+          "end": 15.06
+        },
+        {
+          "word": "with",
+          "start": 15.06,
+          "end": 15.34
+        },
+        {
+          "word": "thousands",
+          "start": 15.34,
+          "end": 15.74
+        },
+        {
+          "word": "of",
+          "start": 15.74,
+          "end": 16.02
+        },
+        {
+          "word": "angry",
+          "start": 16.02,
+          "end": 16.3
+        },
+        {
+          "word": "Americans",
+          "start": 16.3,
+          "end": 16.74
+        },
+        {
+          "word": "asking",
+          "start": 16.74,
+          "end": 17.18
+        },
+        {
+          "word": "the",
+          "start": 17.18,
+          "end": 17.36
+        },
+        {
+          "word": "same",
+          "start": 17.36,
+          "end": 17.56
+        },
+        {
+          "word": "question.",
+          "start": 17.56,
+          "end": 18.02
+        }
+      ],
+      "keyword": "Scrolling social media comments angry consumer feedback",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "POV shot of a hand quickly scrolling through a mobile phone screen displaying a flood of angry, rapidly appearing social media comments and frustrated emoji reactions on a forum.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-2.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pexels Videos",
+      "mediaWidth": 3840,
+      "mediaHeight": 2160,
+      "fitMode": "cover",
+      "mediaOffset": 1.6033333333333317,
+      "originalStartTime": 15.343333333333332,
+      "originalEndTime": 18.7,
+      "trackId": "video-track-1",
+      "posX": 0,
+      "posY": -1,
+      "scale": 1
+    },
+    {
+      "index": 3,
+      "text": "If Bullet is a corporate",
+      "startTime": 18.7,
+      "endTime": 19.86,
+      "duration": 1.1600000000000001,
+      "words": [
+        {
+          "word": "If",
+          "start": 18.7,
+          "end": 18.86
+        },
+        {
+          "word": "Bullet",
+          "start": 18.86,
+          "end": 19.22
+        },
+        {
+          "word": "is",
+          "start": 19.22,
+          "end": 19.36
+        },
+        {
+          "word": "a",
+          "start": 19.36,
+          "end": 19.48
+        },
+        {
+          "word": "corporate",
+          "start": 19.48,
+          "end": 19.86
+        }
+      ],
+      "keyword": "Bulleit Frontier Whiskey bottle high resolution product photography",
+      "mediaType": "image",
+      "sourceHint": "web-image",
+      "framing": "cinematic",
+      "backgroundId": "blur",
+      "visualIntent": "High-resolution studio product shot of a single, iconic Bulleit Frontier Whiskey bottle, elegantly lit against a dark, reflective surface, emphasizing its distinct label and amber liquid.",
+      "background": "blur",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-3.jpg",
+      "mediaExtension": ".jpg",
+      "sourceProvider": "Google Images",
+      "mediaWidth": 2000,
+      "mediaHeight": 1381,
+      "fitMode": "cover",
+      "scale": 0.5,
+      "posX": -1,
+      "posY": -31,
+      "originalStartTime": 18.7,
+      "originalEndTime": 19.86,
+      "trackId": "video-track-2"
+    },
+    {
+      "index": 4,
+      "text": "costume, and Basil Haydons is watered to the legal minimum, and they're a single bottle on the American shelf you can trust with your money for the rest of your life.",
+      "startTime": 19.86,
+      "endTime": 34.58,
+      "duration": 14.719999999999999,
+      "words": [
+        {
+          "word": "costume,",
+          "start": 19.86,
+          "end": 20.34
+        },
+        {
+          "word": "and",
+          "start": 20.76,
+          "end": 20.84
+        },
+        {
+          "word": "Basil",
+          "start": 20.84,
+          "end": 21.14
+        },
+        {
+          "word": "Haydons",
+          "start": 21.14,
+          "end": 21.58
+        },
+        {
+          "word": "is",
+          "start": 21.58,
+          "end": 21.76
+        },
+        {
+          "word": "watered",
+          "start": 21.76,
+          "end": 22.2
+        },
+        {
+          "word": "to",
+          "start": 22.2,
+          "end": 22.28
+        },
+        {
+          "word": "the",
+          "start": 22.28,
+          "end": 22.38
+        },
+        {
+          "word": "legal",
+          "start": 22.38,
+          "end": 22.62
+        },
+        {
+          "word": "minimum,",
+          "start": 22.62,
+          "end": 23
+        },
+        {
+          "word": "and",
+          "start": 29.66,
+          "end": 29.98
+        },
+        {
+          "word": "they're",
+          "start": 29.98,
+          "end": 29.98
+        },
+        {
+          "word": "a",
+          "start": 29.98,
+          "end": 30.1
+        },
+        {
+          "word": "single",
+          "start": 30.1,
+          "end": 30.34
+        },
+        {
+          "word": "bottle",
+          "start": 30.34,
+          "end": 30.7
+        },
+        {
+          "word": "on",
+          "start": 30.7,
+          "end": 30.92
+        },
+        {
+          "word": "the",
+          "start": 30.92,
+          "end": 31
+        },
+        {
+          "word": "American",
+          "start": 31,
+          "end": 31.32
+        },
+        {
+          "word": "shelf",
+          "start": 31.32,
+          "end": 31.7
+        },
+        {
+          "word": "you",
+          "start": 31.7,
+          "end": 31.94
+        },
+        {
+          "word": "can",
+          "start": 31.94,
+          "end": 32.08
+        },
+        {
+          "word": "trust",
+          "start": 32.08,
+          "end": 32.36
+        },
+        {
+          "word": "with",
+          "start": 32.36,
+          "end": 32.6
+        },
+        {
+          "word": "your",
+          "start": 32.6,
+          "end": 32.76
+        },
+        {
+          "word": "money",
+          "start": 32.76,
+          "end": 32.98
+        },
+        {
+          "word": "for",
+          "start": 32.98,
+          "end": 33.18
+        },
+        {
+          "word": "the",
+          "start": 33.18,
+          "end": 33.28
+        },
+        {
+          "word": "rest",
+          "start": 33.28,
+          "end": 33.5
+        },
+        {
+          "word": "of",
+          "start": 33.5,
+          "end": 33.66
+        },
+        {
+          "word": "your",
+          "start": 33.66,
+          "end": 33.76
+        },
+        {
+          "word": "life.",
+          "start": 33.76,
+          "end": 34.1
+        }
+      ],
+      "keyword": "Basil Haydens Kentucky Straight Bourbon Whiskey bottle sleek studio",
+      "mediaType": "image",
+      "sourceHint": "web-image",
+      "framing": "cinematic",
+      "backgroundId": "blur",
+      "visualIntent": "Striking, well-lit studio image of a Basil Haydens Kentucky Straight Bourbon Whiskey bottle, highlighting its distinctive short, stout shape and cream-colored label, followed by a wide shot looking down a crowded liquor store aisle, shelves packed with a vast, somewhat blurred array of generic bourbon bottles, creating a sense of overwhelming, untrustworthy choices, with one spot subtly highlighted or different.",
+      "background": "blur",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-4.jpg",
+      "mediaExtension": ".jpg",
+      "sourceProvider": "Google Images",
+      "mediaWidth": 1920,
+      "mediaHeight": 2560,
+      "fitMode": "contain",
+      "scale": 1,
+      "posX": 0,
+      "posY": 0,
+      "originalStartTime": 19.86,
+      "originalEndTime": 34.58,
+      "trackId": "video-track-2"
+    },
+    {
+      "index": 5,
+      "text": "Today, we are answering that question.",
+      "startTime": 34.58,
+      "endTime": 37.26,
+      "duration": 2.6799999999999997,
+      "words": [
+        {
+          "word": "Today,",
+          "start": 34.58,
+          "end": 34.84
+        },
+        {
+          "word": "we",
+          "start": 35.32,
+          "end": 35.54
+        },
+        {
+          "word": "are",
+          "start": 35.54,
+          "end": 35.64
+        },
+        {
+          "word": "answering",
+          "start": 35.64,
+          "end": 35.98
+        },
+        {
+          "word": "that",
+          "start": 35.98,
+          "end": 36.22
+        },
+        {
+          "word": "question.",
+          "start": 36.22,
+          "end": 36.68
+        }
+      ],
+      "keyword": "Lightbulb illuminating dark room finding solution",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "Close-up shot of an old-fashioned incandescent lightbulb slowly glowing brighter in a dim, thoughtful setting, symbolizing an idea forming or a question being answered, with a shallow depth of field.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-5.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pexels Videos",
+      "mediaWidth": 1920,
+      "mediaHeight": 1080,
+      "fitMode": "cover",
+      "originalStartTime": 34.58,
+      "originalEndTime": 37.26,
+      "trackId": "video-track-1",
+      "transitionType": "push",
+      "transitionDuration": 450
+    },
+    {
+      "index": 6,
+      "text": "We have built the buy it for life list.",
+      "startTime": 37.26,
+      "endTime": 39.64,
+      "duration": 2.3800000000000026,
+      "words": [
+        {
+          "word": "We",
+          "start": 37.26,
+          "end": 37.46
+        },
+        {
+          "word": "have",
+          "start": 37.46,
+          "end": 37.54
+        },
+        {
+          "word": "built",
+          "start": 37.54,
+          "end": 37.76
+        },
+        {
+          "word": "the",
+          "start": 37.76,
+          "end": 37.96
+        },
+        {
+          "word": "buy",
+          "start": 37.96,
+          "end": 38.18
+        },
+        {
+          "word": "it",
+          "start": 38.18,
+          "end": 38.28
+        },
+        {
+          "word": "for",
+          "start": 38.28,
+          "end": 38.44
+        },
+        {
+          "word": "life",
+          "start": 38.44,
+          "end": 38.64
+        },
+        {
+          "word": "list.",
+          "start": 38.64,
+          "end": 38.94
+        }
+      ],
+      "keyword": "Hands typing on vintage mechanical typewriter creating definitive list",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "Close-up shot of hands deliberately typing on a vintage mechanical typewriter, slowly revealing text on paper that resembles a carefully compiled, important list.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-6.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pexels Videos",
+      "mediaWidth": 4096,
+      "mediaHeight": 2160,
+      "fitMode": "cover",
+      "originalStartTime": 37.26,
+      "originalEndTime": 39.64,
+      "trackId": "video-track-1",
+      "transitionType": "push",
+      "transitionDuration": 450
+    },
+    {
+      "index": 7,
+      "text": "They are not all cheap. They are not all famous. And some of them do not even have a marketing budget.",
+      "startTime": 46.290954,
+      "endTime": 48.56,
+      "duration": 2.9200000000000017,
+      "words": [
+        {
+          "word": "They",
+          "start": 42.5,
+          "end": 42.66
+        },
+        {
+          "word": "are",
+          "start": 42.66,
+          "end": 42.74
+        },
+        {
+          "word": "not",
+          "start": 42.74,
+          "end": 42.98
+        },
+        {
+          "word": "all",
+          "start": 42.98,
+          "end": 43.2
+        },
+        {
+          "word": "cheap.",
+          "start": 43.2,
+          "end": 43.5
+        },
+        {
+          "word": "They",
+          "start": 44.04,
+          "end": 44.12
+        },
+        {
+          "word": "are",
+          "start": 44.12,
+          "end": 44.2
+        },
+        {
+          "word": "not",
+          "start": 44.2,
+          "end": 44.4
+        },
+        {
+          "word": "all",
+          "start": 44.4,
+          "end": 44.6
+        },
+        {
+          "word": "famous.",
+          "start": 44.6,
+          "end": 44.94
+        },
+        {
+          "word": "And",
+          "start": 45.62,
+          "end": 45.72
+        },
+        {
+          "word": "some",
+          "start": 45.72,
+          "end": 45.9
+        },
+        {
+          "word": "of",
+          "start": 45.9,
+          "end": 46.02
+        },
+        {
+          "word": "them",
+          "start": 46.02,
+          "end": 46.24
+        },
+        {
+          "word": "do",
+          "start": 46.24,
+          "end": 46.46
+        },
+        {
+          "word": "not",
+          "start": 46.46,
+          "end": 46.66
+        },
+        {
+          "word": "even",
+          "start": 46.66,
+          "end": 46.92
+        },
+        {
+          "word": "have",
+          "start": 46.92,
+          "end": 47.1
+        },
+        {
+          "word": "a",
+          "start": 47.1,
+          "end": 47.22
+        },
+        {
+          "word": "marketing",
+          "start": 47.22,
+          "end": 47.5
+        },
+        {
+          "word": "budget.",
+          "start": 47.5,
+          "end": 47.98
+        }
+      ],
+      "keyword": "Small batch bourbon bottles diverse collection rustic setting",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "Dynamic camera pan across a rustic wooden table showcasing a diverse collection of different, lesser-known small-batch bourbon bottles, varied in shape and label, suggesting a range of unique choices beyond mainstream fame.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-8.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pixabay Videos",
+      "mediaWidth": 1920,
+      "mediaHeight": 1080,
+      "fitMode": "cover",
+      "mediaOffset": 3.7909539999999993,
+      "originalStartTime": 45.64,
+      "originalEndTime": 48.56,
+      "trackId": "video-track-1",
+      "transitionType": "blur",
+      "transitionDuration": 550
+    },
+    {
+      "index": 8,
+      "text": "But they have one thing in common. They have never betrayed the person holding the glass.",
+      "startTime": 48.56,
+      "endTime": 53.58,
+      "duration": 5.019999999999996,
+      "words": [
+        {
+          "word": "But",
+          "start": 48.56,
+          "end": 48.72
+        },
+        {
+          "word": "they",
+          "start": 48.72,
+          "end": 48.86
+        },
+        {
+          "word": "have",
+          "start": 48.86,
+          "end": 49
+        },
+        {
+          "word": "one",
+          "start": 49,
+          "end": 49.26
+        },
+        {
+          "word": "thing",
+          "start": 49.26,
+          "end": 49.52
+        },
+        {
+          "word": "in",
+          "start": 49.52,
+          "end": 49.7
+        },
+        {
+          "word": "common.",
+          "start": 49.7,
+          "end": 50.04
+        },
+        {
+          "word": "They",
+          "start": 50.6,
+          "end": 50.76
+        },
+        {
+          "word": "have",
+          "start": 50.76,
+          "end": 50.88
+        },
+        {
+          "word": "never",
+          "start": 50.88,
+          "end": 51.22
+        },
+        {
+          "word": "betrayed",
+          "start": 51.22,
+          "end": 51.64
+        },
+        {
+          "word": "the",
+          "start": 51.64,
+          "end": 51.88
+        },
+        {
+          "word": "person",
+          "start": 51.88,
+          "end": 52.16
+        },
+        {
+          "word": "holding",
+          "start": 52.16,
+          "end": 52.48
+        },
+        {
+          "word": "the",
+          "start": 52.48,
+          "end": 52.64
+        },
+        {
+          "word": "glass.",
+          "start": 52.64,
+          "end": 52.92
+        }
+      ],
+      "keyword": "Person holding glass of amber bourbon swirling liquid",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "Close-up, intimate shot of a hand gently swirling a glass of amber bourbon, firelight or warm ambient light reflecting off the liquid, conveying a sense of calm enjoyment and trust in the drink.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-9.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pexels Videos",
+      "mediaWidth": 1920,
+      "mediaHeight": 1080,
+      "fitMode": "cover",
+      "originalStartTime": 48.56,
+      "originalEndTime": 53.58,
+      "trackId": "video-track-1"
+    },
+    {
+      "index": 9,
+      "text": "Here is the bourbon white list.",
+      "startTime": 53.58,
+      "endTime": 55.4840625,
+      "duration": 1.904062500000002,
+      "words": [
+        {
+          "word": "Here",
+          "start": 53.58,
+          "end": 53.88
+        },
+        {
+          "word": "is",
+          "start": 53.88,
+          "end": 54.02
+        },
+        {
+          "word": "the",
+          "start": 54.02,
+          "end": 54.12
+        },
+        {
+          "word": "bourbon",
+          "start": 54.12,
+          "end": 54.44
+        },
+        {
+          "word": "white",
+          "start": 54.44,
+          "end": 54.7
+        },
+        {
+          "word": "list.",
+          "start": 54.7,
+          "end": 54.98
+        }
+      ],
+      "keyword": "Clean modern presentation screen revealing trusted brands list",
+      "mediaType": "video",
+      "sourceHint": "stock",
+      "framing": "fullscreen",
+      "backgroundId": "none",
+      "visualIntent": "A clean, modern graphic animation appearing on a sleek digital screen, text \"Bourbon White List\" dramatically revealed with a subtle glow, implying a definitive and important revelation.",
+      "background": "none",
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\scene-10.mp4",
+      "mediaExtension": ".mp4",
+      "sourceProvider": "Pexels Videos",
+      "mediaWidth": 1920,
+      "mediaHeight": 1080,
+      "fitMode": "cover",
+      "originalStartTime": 53.58,
+      "originalEndTime": 55.4840625,
+      "trackId": "video-track-1"
+    }
+  ],
+  "mgScenes": [
+    {
+      "isMGScene": true,
+      "trackId": "video-track-3",
+      "mediaType": "motion-graphic",
+      "startTime": 8.309999999999999,
+      "endTime": 15.343333333333332,
+      "duration": 189900,
+      "text": "bought beloved brands",
+      "subtext": "Gutted recipe,Lowered proof,Doubled price",
+      "type": "bulletList",
+      "position": "center-left",
+      "style": "clean",
+      "keyword": "MG: bulletList",
+      "mgData": {
+        "id": "mg-1",
+        "type": "bulletList",
+        "category": "fullscreen",
+        "text": "bought beloved brands",
+        "subtext": "Gutted recipe,Lowered proof,Doubled price",
+        "startTime": 8.309999999999999,
+        "duration": 7.033333333333333,
+        "position": "center-left",
+        "sceneIndex": 1,
+        "style": "clean",
+        "isMGScene": true,
+        "trackId": "video-track-3",
+        "mediaType": "motion-graphic",
+        "endTime": 15.343333333333332,
+        "keyword": "MG: bulletList"
+      }
+    },
+    {
+      "isMGScene": true,
+      "trackId": "video-track-3",
+      "mediaType": "motion-graphic",
+      "startTime": 40.290954,
+      "endTime": 46.290954,
+      "duration": 162000,
+      "text": "Nine Uncompromised Bourbon Brands",
+      "subtext": "",
+      "type": "rankingList",
+      "position": "center-left",
+      "style": "clean",
+      "keyword": "MG: rankingList",
+      "mgData": {
+        "id": "mg-7",
+        "type": "rankingList",
+        "category": "fullscreen",
+        "text": "Nine Uncompromised Bourbon Brands",
+        "subtext": "",
+        "startTime": 39.64,
+        "duration": 6,
+        "position": "center-left",
+        "sceneIndex": 7,
+        "style": "clean",
+        "isMGScene": true,
+        "trackId": "video-track-3",
+        "mediaType": "motion-graphic",
+        "endTime": 45.64,
+        "keyword": "MG: rankingList"
+      }
+    }
+  ],
+  "overlayScenes": [
+    {
+      "index": 0,
+      "trackId": "overlay-track",
+      "isOverlay": true,
+      "blendMode": "soft-light",
+      "overlayType": "vignette",
+      "overlayIntensity": 0.15,
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\overlay-0.png",
+      "mediaExtension": ".png",
+      "mediaType": "image",
+      "sourceProvider": "local",
+      "sourceFile": "vignette.png",
+      "isLocal": true,
+      "startTime": 0,
+      "endTime": 55.4840625,
+      "text": "vignette overlay"
+    },
+    {
+      "index": 1,
+      "trackId": "overlay-track",
+      "isOverlay": true,
+      "blendMode": "soft-light",
+      "overlayType": "Paper texture",
+      "overlayIntensity": 0.15,
+      "mediaFile": "C:\\Users\\user\\Downloads\\Test Save\\temp\\overlay-1.mp4",
+      "mediaExtension": ".mp4",
+      "mediaType": "video",
+      "sourceProvider": "local",
+      "sourceFile": "Paper texture.mp4",
+      "isLocal": true,
+      "startTime": 0,
+      "endTime": 55.4840625,
+      "text": "Paper texture overlay"
+    }
+  ],
+  "motionGraphics": [
+    {
+      "id": "mg-0",
+      "type": "headline",
+      "category": "overlay",
+      "text": "Bourbon Industry: Corporate Betrayal Exposed",
+      "subtext": "",
+      "startTime": 4.8100000000000005,
+      "duration": 5.966666666666667,
+      "position": "bottom-left",
+      "sceneIndex": 0,
+      "style": "clean"
+    },
+    {
+      "id": "mg-4",
+      "type": "callout",
+      "category": "overlay",
+      "text": "Only one trusted bottle remains.",
+      "subtext": "",
+      "startTime": 30.05,
+      "duration": 4.379999999999997,
+      "position": "bottom-left",
+      "sceneIndex": 4,
+      "style": "clean"
+    },
+    {
+      "id": "mg-5",
+      "type": "kineticText",
+      "category": "overlay",
+      "text": "Today, we are answering that question.",
+      "subtext": "",
+      "startTime": 34.58,
+      "duration": 3.6799999999999997,
+      "position": "center",
+      "sceneIndex": 5,
+      "style": "clean"
+    },
+    {
+      "id": "mg-6",
+      "type": "callout",
+      "category": "overlay",
+      "text": "Buy It For Life List",
+      "subtext": "",
+      "startTime": 38.59,
+      "duration": 3.3800000000000026,
+      "position": "bottom-left",
+      "sceneIndex": 6,
+      "style": "clean"
+    },
+    {
+      "id": "mg-8",
+      "type": "animatedIcons",
+      "category": "overlay",
+      "text": "money, star, megaphone",
+      "subtext": "drift",
+      "startTime": 43.150000000000006,
+      "duration": 5.633333333333333,
+      "position": "center",
+      "sceneIndex": 8,
+      "style": "clean",
+      "icons": [
+        {
+          "keyword": "money",
+          "file": "icon-8-0.svg",
+          "animation": "drift",
+          "x": 23,
+          "y": 19,
+          "size": 66,
+          "delay": 0,
+          "_iconId": "mdi:money"
+        },
+        {
+          "keyword": "star",
+          "file": "icon-8-1.svg",
+          "animation": "drift",
+          "x": 33,
+          "y": 72,
+          "size": 55,
+          "delay": 0.35,
+          "_iconId": "mdi:star"
+        },
+        {
+          "keyword": "megaphone",
+          "file": "icon-8-2.svg",
+          "animation": "drift",
+          "x": 58,
+          "y": 60,
+          "size": 84,
+          "delay": 0.7,
+          "_iconId": "mdi:megaphone"
+        }
+      ],
+      "animationStyle": "drift",
+      "iconOpacity": 0.15
+    },
+    {
+      "id": "mg-9",
+      "type": "callout",
+      "category": "overlay",
+      "text": "Never Betrayed The Person Holding Glass",
+      "subtext": "",
+      "startTime": 51.17,
+      "duration": 2.7499999999999987,
+      "position": "center",
+      "sceneIndex": 9,
+      "style": "clean"
+    },
+    {
+      "id": "mg-10",
+      "type": "headline",
+      "category": "overlay",
+      "text": "The Bourbon White List",
+      "subtext": "",
+      "startTime": 54.07,
+      "duration": 1.4140625,
+      "position": "bottom-left",
+      "sceneIndex": 10,
+      "style": "clean"
+    }
+  ],
+  "mgStyle": "clean",
+  "mapStyle": "dark",
+  "transitions": [
+    {
+      "fromSceneIndex": 0,
+      "toSceneIndex": 1,
+      "type": "cut",
+      "duration": 0
+    },
+    {
+      "fromSceneIndex": 1,
+      "toSceneIndex": 2,
+      "type": "cut",
+      "duration": 0
+    },
+    {
+      "fromSceneIndex": 2,
+      "toSceneIndex": 3,
+      "type": "cut",
+      "duration": 0
+    },
+    {
+      "fromSceneIndex": 3,
+      "toSceneIndex": 4,
+      "type": "cut",
+      "duration": 0
+    },
+    {
+      "fromSceneIndex": 4,
+      "toSceneIndex": 5,
+      "type": "push",
+      "duration": 450
+    },
+    {
+      "fromSceneIndex": 5,
+      "toSceneIndex": 6,
+      "type": "push",
+      "duration": 450
+    },
+    {
+      "fromSceneIndex": 6,
+      "toSceneIndex": 7,
+      "type": "blur",
+      "duration": 550
+    },
+    {
+      "fromSceneIndex": 7,
+      "toSceneIndex": 8,
+      "type": "cut",
+      "duration": 0
+    },
+    {
+      "fromSceneIndex": 8,
+      "toSceneIndex": 9,
+      "type": "cut",
+      "duration": 0
+    },
+    {
+      "fromSceneIndex": 9,
+      "toSceneIndex": 10,
+      "type": "dissolve",
+      "duration": 600
+    }
+  ],
+  "visualEffects": [
+    {
+      "sceneIndex": 0,
+      "effects": [
+        {
+          "type": "vignette",
+          "intensity": 0.4,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "grain",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "letterbox",
+          "intensity": 1,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 1,
+      "effects": [
+        {
+          "type": "grain",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "chromatic",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "colorTint",
+          "intensity": 0.2,
+          "tint": "cool",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 2,
+      "effects": [
+        {
+          "type": "chromatic",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "colorTint",
+          "intensity": 0.2,
+          "tint": "cool",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 3,
+      "effects": [
+        {
+          "type": "vignette",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "colorTint",
+          "intensity": 0.2,
+          "tint": "cool",
+          "renderMode": "css"
+        },
+        {
+          "type": "chromatic",
+          "intensity": 0.1,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 4,
+      "effects": [
+        {
+          "type": "grain",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "letterbox",
+          "intensity": 0.2,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 5,
+      "effects": [
+        {
+          "type": "vignette",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "grain",
+          "intensity": 0.2,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "letterbox",
+          "intensity": 0.8,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 6,
+      "effects": [
+        {
+          "type": "dust",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "colorTint",
+          "intensity": 0.2,
+          "tint": "sepia",
+          "renderMode": "css"
+        },
+        {
+          "type": "blurVignette",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 7,
+      "effects": [
+        {
+          "type": "vignette",
+          "intensity": 0.4,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "grain",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "letterbox",
+          "intensity": 1,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 8,
+      "effects": [
+        {
+          "type": "vignette",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "colorTint",
+          "intensity": 0.3,
+          "tint": "cool",
+          "renderMode": "css"
+        },
+        {
+          "type": "chromatic",
+          "intensity": 0.2,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 9,
+      "effects": [
+        {
+          "type": "letterbox",
+          "intensity": 1,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "blurVignette",
+          "intensity": 0.4,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "lightLeak",
+          "intensity": 0.2,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    },
+    {
+      "sceneIndex": 10,
+      "effects": [
+        {
+          "type": "letterbox",
+          "intensity": 0.3,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "grain",
+          "intensity": 0.2,
+          "tint": "none",
+          "renderMode": "css"
+        },
+        {
+          "type": "chromatic",
+          "intensity": 0.2,
+          "tint": "none",
+          "renderMode": "css"
+        }
+      ]
+    }
+  ],
+  "scriptContext": {
+    "summary": "Exposing corporate betrayal in the bourbon industry and revealing a curated list of trusted, uncompromised brands.",
+    "theme": "business",
+    "tone": "serious",
+    "mood": "intense",
+    "pacing": "moderate",
+    "visualStyle": "documentary",
+    "entities": [
+      "Bulleit",
+      "Basil Haydon's",
+      "\"bourbon white list"
+    ],
+    "keyStats": [
+      "nine bourbon brands",
+      "thousands of angry Americans"
+    ],
+    "mainPoints": [],
+    "targetAudience": "",
+    "emotionalArc": "",
+    "format": "documentary",
+    "sections": [],
+    "ctaDetected": false,
+    "ctaStartTime": null,
+    "hookEndTime": 22,
+    "densityTarget": 4,
+    "themeId": "corporate"
+  },
+  "visualAnalysis": [
+    {
+      "sceneIndex": 0,
+      "description": "Dark industrial building with stacked barrels and machinery, bright light streams from opening.",
+      "suitability": "good",
+      "suitabilityReason": "Bourbon industry setting, dark atmosphere, light suggests exposure.",
+      "dominantColors": "Dark browns, greys, bright white",
+      "mood": "dramatic",
+      "hasText": false,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 1,
+      "description": "Vast sky with dramatic clouds over distant mountains at sunset, bright light central.",
+      "suitability": "fair",
+      "suitabilityReason": "Mood of shifting clouds and dark horizon aligns with betrayal theme.",
+      "dominantColors": "Blue, gray, white, orange, dark",
+      "mood": "dramatic",
+      "hasText": false,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 2,
+      "description": "Emojis and social media reaction icons float dynamically on a bright green background.",
+      "suitability": "good",
+      "suitabilityReason": "Visually represents \"comment sections flooded\" with various reactions, including anger.",
+      "dominantColors": "Green, yellow, blue, red",
+      "mood": "energetic",
+      "hasText": false,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 3,
+      "description": "A full bottle of Bulleit Bourbon whiskey is centered against a stark white background.",
+      "suitability": "good",
+      "suitabilityReason": "Directly shows the brand mentioned in narration.",
+      "dominantColors": "Amber, red, white, brown, gold",
+      "mood": "neutral",
+      "hasText": true,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 4,
+      "description": "Basil Hayden's bourbon bottle and glass sit on a wooden table outdoors.",
+      "suitability": "good",
+      "suitabilityReason": "Directly shows brand criticized in narration, strong visual match.",
+      "dominantColors": "Brown, green, amber, beige.",
+      "mood": "calm",
+      "hasText": true,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 5,
+      "description": "A completely black screen, devoid of discernible objects or details.",
+      "suitability": "poor",
+      "suitabilityReason": "No visual context for \"answering that question.",
+      "dominantColors": "Black",
+      "mood": "dark",
+      "hasText": false,
+      "suggestedMGPosition": "clear"
+    },
+    {
+      "sceneIndex": 6,
+      "description": "Close-up of a vintage typewriter's keys, suggesting writing or list creation.",
+      "suitability": "fair",
+      "suitabilityReason": "Typewriter suggests compiling a list, but doesn't connect to \"buy it for life.",
+      "dominantColors": "Dark grey, white, subtle warm",
+      "mood": "calm",
+      "hasText": false,
+      "suggestedMGPosition": "avoid-bottom"
+    },
+    {
+      "sceneIndex": 7,
+      "description": "Close-up of two wooden bourbon barrels with metal bands, one partially visible.",
+      "suitability": "good",
+      "suitabilityReason": "Barrels symbolize authenticity and tradition in bourbon-making.",
+      "dominantColors": "Brown, black, natural wood",
+      "mood": "dark",
+      "hasText": true,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 8,
+      "description": "A dense school of small, blue-silver fish swims in clear, deep water.",
+      "suitability": "fair",
+      "suitabilityReason": "Abstractly represents a diverse group of many, some less noticeable.",
+      "dominantColors": "Blue, silver, grey",
+      "mood": "calm",
+      "hasText": false,
+      "suggestedMGPosition": "clear"
+    },
+    {
+      "sceneIndex": 9,
+      "description": "A hand holds a glass of amber liquid with a blurred decanter in the background.",
+      "suitability": "good",
+      "suitabilityReason": "Directly illustrates \"person holding the glass\" from narration.",
+      "dominantColors": "Amber, white, brown, skin tones",
+      "mood": "warm",
+      "hasText": false,
+      "suggestedMGPosition": "avoid-center"
+    },
+    {
+      "sceneIndex": 10,
+      "description": "A laptop displays \"84%\" on its screen, surrounded by dark red lighting and surfaces.",
+      "suitability": "poor",
+      "suitabilityReason": "Image shows a laptop screen with percentage, not a bourbon list.",
+      "dominantColors": "Red, black, orange",
+      "mood": "dramatic",
+      "hasText": true,
+      "suggestedMGPosition": "avoid-center"
+    }
+  ],
+  "transitionStyle": "random",
+  "mutedTracks": {}
+}

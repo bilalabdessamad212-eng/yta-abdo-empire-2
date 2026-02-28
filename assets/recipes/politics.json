@@ -1,0 +1,96 @@
+{
+  "niche": "politics",
+  "description": "Political news, geopolitics, military analysis, government policy",
+  "version": 1,
+
+  "detectKeywords": [
+    "war", "military", "election", "government", "president", "congress",
+    "senate", "parliament", "politics", "geopolitics", "diplomacy", "sanctions",
+    "nato", "united nations", "foreign policy", "legislation", "democrat",
+    "republican", "campaign", "vote", "referendum", "conflict", "troops",
+    "missile", "nuclear", "territory", "invasion", "occupation", "ceasefire",
+    "treaty", "alliance", "regime", "coup", "protest", "revolution"
+  ],
+
+  "mgPreferences": [
+    { "type": "statCounter", "when": "numerical data, costs, casualties, budgets, percentages", "priority": "high" },
+    { "type": "comparisonCard", "when": "contrasting sides, opposing forces, before/after, cost comparisons", "priority": "high" },
+    { "type": "mapChart", "when": "geopolitical context, borders, regions, troop movements, territorial control", "priority": "high" },
+    { "type": "articleHighlight", "when": "citing news sources, reports, official statements, leaked documents", "priority": "high" },
+    { "type": "headline", "when": "opening hook, section transitions, key revelations", "priority": "medium" },
+    { "type": "callout", "when": "expert quotes, witness statements, political declarations", "priority": "medium" },
+    { "type": "barChart", "when": "military spending, polling data, economic impact, force comparisons", "priority": "medium" },
+    { "type": "rankingList", "when": "top military powers, most affected regions, key players", "priority": "medium" },
+    { "type": "timeline", "when": "chronological events, escalation sequence, historical context", "priority": "medium" },
+    { "type": "bulletList", "when": "key points summary, list of demands, peace conditions", "priority": "low" },
+    { "type": "donutChart", "when": "budget allocation, force composition, vote distribution", "priority": "low" }
+  ],
+
+  "footageStrategy": {
+    "stock": {
+      "percentage": 50,
+      "use": "war scenes, military equipment, soldiers, tanks, explosions, city destruction",
+      "keywords": ["military footage", "war zone", "tanks battlefield", "soldiers marching", "destroyed buildings"]
+    },
+    "web-image": {
+      "percentage": 25,
+      "use": "maps, satellite imagery, documents, official photos, infographics",
+      "keywords": ["political map", "satellite image", "official document", "press conference photo"]
+    },
+    "youtube": {
+      "percentage": 20,
+      "use": "press conferences, official statements, news broadcasts, parliament sessions",
+      "keywords": ["press conference", "official statement", "news broadcast"]
+    }
+  },
+
+  "pacing": {
+    "sceneDuration": "2-4 seconds per clip, faster during action sequences",
+    "transitionStyle": "80% hard cuts, 20% subtle zoom or dissolve",
+    "textAppearance": "slide-in preferred, always with slight bounce"
+  },
+
+  "sceneStructure": [
+    {
+      "section": "hook",
+      "durationHint": "3-5 seconds",
+      "mgTypes": ["headline", "callout"],
+      "footage": "Shocking or emotional footage, close-up action",
+      "notes": "Open with a provocative question or dramatic statement"
+    },
+    {
+      "section": "context",
+      "durationHint": "10-15 seconds",
+      "mgTypes": ["mapChart", "timeline"],
+      "footage": "Maps, archive footage, establishing shots",
+      "notes": "Set the geopolitical stage, show where events are happening"
+    },
+    {
+      "section": "data",
+      "durationHint": "15-20 seconds",
+      "mgTypes": ["statCounter", "comparisonCard", "barChart", "articleHighlight"],
+      "footage": "Stock military footage, official documents, data visualizations",
+      "notes": "Present hard numbers and comparisons, cite sources"
+    },
+    {
+      "section": "analysis",
+      "durationHint": "20-30 seconds",
+      "mgTypes": ["callout", "rankingList", "bulletList"],
+      "footage": "Expert footage, news clips, supporting visuals",
+      "notes": "Expert opinions, deeper analysis, multiple perspectives"
+    },
+    {
+      "section": "cta",
+      "durationHint": "5-8 seconds",
+      "mgTypes": ["subscribeCTA"],
+      "footage": "Channel branding footage",
+      "notes": "Subscribe prompt with final impactful statement"
+    }
+  ],
+
+  "stylePreferences": {
+    "mgStyle": "cinematic",
+    "mapStyle": "dark",
+    "colorScheme": "blue-teal accents on dark backgrounds"
+  }
+}
