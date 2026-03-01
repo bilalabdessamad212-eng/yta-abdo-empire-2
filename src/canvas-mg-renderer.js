@@ -26,19 +26,97 @@ function getCanvasModule() {
 // ANIMATION UTILITIES (ported from Remotion)
 // ---------------------------------------------------------------------------
 
-function springValue(frame, fps, config = {}) {
-    const { damping = 18, stiffness = 100, mass = 1 } = config;
-    const durationInFrames = config.durationInFrames || Math.ceil(fps * 2);
-    let x = 0, v = 0;
-    const dt = 1 / fps;
-    const targetFrame = Math.min(frame, durationInFrames);
-    for (let i = 0; i < targetFrame; i++) {
-        const springForce = -stiffness * (x - 1);
-        const dampingForce = -damping * v;
-        v += ((springForce + dampingForce) / mass) * dt;
-        x += v * dt;
+// Core spring physics calculation — exact port of Remotion's springCalculation()
+function springCalc(frame, fps, config) {
+    const c = config.damping || 10;
+    const m = config.mass || 1;
+    const k = config.stiffness || 100;
+
+    let current = 0;
+    let velocity = 0;
+    let lastTimestamp = 0;
+
+    const frameClamped = Math.max(0, frame);
+    const floorFrame = Math.floor(frameClamped);
+    const unevenRest = frameClamped - floorFrame;
+
+    for (let f = 0; f <= floorFrame; f++) {
+        const actualF = (f === floorFrame) ? f + unevenRest : f;
+        const now = (actualF / fps) * 1000;
+        const deltaTime = Math.min(now - lastTimestamp, 64);
+        const t = deltaTime / 1000;
+
+        if (t <= 0) { lastTimestamp = now; continue; }
+
+        const v0 = -velocity;
+        const x0 = 1 - current;
+        const zeta = c / (2 * Math.sqrt(k * m));
+        const omega0 = Math.sqrt(k / m);
+
+        if (zeta < 1) {
+            const omega1 = omega0 * Math.sqrt(1 - zeta * zeta);
+            const envelope = Math.exp(-zeta * omega0 * t);
+            const sin1 = Math.sin(omega1 * t);
+            const cos1 = Math.cos(omega1 * t);
+            const frag1 = envelope * (sin1 * ((v0 + zeta * omega0 * x0) / omega1) + x0 * cos1);
+            current = 1 - frag1;
+            velocity = zeta * omega0 * frag1 -
+                envelope * (cos1 * (v0 + zeta * omega0 * x0) - omega1 * x0 * sin1);
+        } else {
+            const envelope = Math.exp(-omega0 * t);
+            current = 1 - envelope * (x0 + (v0 + omega0 * x0) * t);
+            velocity = envelope * (v0 * (t * omega0 - 1) + t * x0 * omega0 * omega0);
+        }
+
+        lastTimestamp = now;
     }
-    return Math.max(0, Math.min(1.15, x)); // allow slight overshoot for spring bounce
+
+    return current;
+}
+
+// Measure how many frames it takes for a spring to settle (within threshold).
+// Exact port of Remotion's measureSpring().
+function measureSpring(fps, config, threshold = 0.005) {
+    let frame = 0;
+    let finishedFrame = 0;
+    let val = springCalc(frame, fps, config);
+    let diff = Math.abs(val - 1);
+
+    while (diff >= threshold) {
+        frame++;
+        val = springCalc(frame, fps, config);
+        diff = Math.abs(val - 1);
+    }
+
+    finishedFrame = frame;
+    for (let i = 0; i < 20; i++) {
+        frame++;
+        val = springCalc(frame, fps, config);
+        diff = Math.abs(val - 1);
+        if (diff >= threshold) {
+            i = 0;
+            finishedFrame = frame + 1;
+        }
+    }
+
+    return finishedFrame;
+}
+
+// Main spring function — supports durationInFrames like Remotion's spring().
+// When durationInFrames is set, the spring is time-stretched to fit exactly.
+function springValue(frame, fps, config = {}) {
+    const { durationInFrames, ...springConfig } = config;
+    const cfg = { damping: 18, stiffness: 100, mass: 1, ...springConfig };
+
+    let effectiveFrame = frame;
+    if (durationInFrames !== undefined && durationInFrames > 0) {
+        const naturalDuration = measureSpring(fps, cfg);
+        if (naturalDuration > 0) {
+            effectiveFrame = frame / (durationInFrames / naturalDuration);
+        }
+    }
+
+    return springCalc(effectiveFrame, fps, cfg);
 }
 
 function interpolate(value, inputRange, outputRange, opts = {}) {
@@ -123,26 +201,41 @@ function setFont(ctx, weight, size, family) {
 }
 
 function drawTextShadowed(ctx, text, x, y, s, strong) {
-    // Note: Canvas shadowBlur is ~2x more intense than CSS text-shadow blur,
-    // so we use smaller values here to match the Remotion/CSS look.
+    // Matches makeShadow() in mg-style-utils.js exactly.
+    // Glow strong:  "0 0 30px primary@90, 0 0 60px primary@40, 0 2px 12px black@90"
+    // Glow weak:    "0 0 20px primary@60, 0 0 40px primary@25, 0 2px 8px black@70"
+    // Non-glow strong: "0 4px 24px black@85, 0 2px 8px black@50"
+    // Non-glow weak:   "0 2px 12px black@70, 0 1px 4px black@40"
     if (s.glow) {
-        // Layer 1: wide glow (CSS equivalent: 0 0 40/60px at 12% opacity)
-        ctx.shadowColor = s.primary + '20';
-        ctx.shadowBlur = strong ? 25 : 18;
+        // Layer 0: Dark anchor shadow for readability
+        ctx.shadowColor = strong ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.7)';
+        ctx.shadowBlur = strong ? 12 : 8;
+        ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 2;
+        ctx.fillText(text, x, y);
+        // Layer 1: Primary glow
+        ctx.shadowColor = s.primary + (strong ? '90' : '60');
+        ctx.shadowBlur = strong ? 30 : 20;
         ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
         ctx.fillText(text, x, y);
-        // Layer 2: inner glow (CSS equivalent: 0 0 20/30px at 35% opacity)
-        ctx.shadowColor = s.primary + '50';
-        ctx.shadowBlur = strong ? 12 : 8;
+        // Layer 2: Wide diffuse glow
+        ctx.shadowColor = s.primary + (strong ? '40' : '25');
+        ctx.shadowBlur = strong ? 60 : 40;
         ctx.fillText(text, x, y);
     } else {
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = strong ? 10 : 5;
+        // Layer 1: Wide shadow
+        ctx.shadowColor = strong ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.7)';
+        ctx.shadowBlur = strong ? 24 : 12;
         ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = strong ? 3 : 1;
+        ctx.shadowOffsetY = strong ? 4 : 2;
+        ctx.fillText(text, x, y);
+        // Layer 2: Tight shadow
+        ctx.shadowColor = strong ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = strong ? 8 : 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = strong ? 2 : 1;
         ctx.fillText(text, x, y);
     }
-    // Crisp text on top
+    // Crisp text on top (no shadow)
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
@@ -208,7 +301,7 @@ function renderHeadline(ctx, frame, fps, mg, s, anim, isFullScreen) {
     const translateY = isExiting
         ? interpolate(exitProgress, [0, 1], [-12, 0])
         : interpolate(enterSpring, [0, 1], [30, 0]);
-    const blur = isExiting ? 0 : interpolate(enterLinear, [0, 0.4], [6, 0], { extrapolateRight: 'clamp' });
+    const blur = isExiting ? 0 : interpolate(enterLinear, [0, 0.6], [6, 0], { extrapolateRight: 'clamp' });
 
     // Accent bar
     const barDelay = Math.round(0.15 * fps);
@@ -337,7 +430,7 @@ function renderStatCounter(ctx, frame, fps, mg, s, anim, isFullScreen) {
     const scale = isExiting
         ? interpolate(exitProgress, [0, 1], [0.95, 1])
         : interpolate(enterSpring, [0, 1], [0.5, 1]);
-    const blur = isExiting ? 0 : interpolate(enterLinear, [0, 0.4], [4, 0], { extrapolateRight: 'clamp' });
+    const blur = isExiting ? 0 : interpolate(enterLinear, [0, 0.6], [4, 0], { extrapolateRight: 'clamp' });
 
     ctx.save();
     ctx.globalAlpha = Math.min(1, opacity);
@@ -486,6 +579,25 @@ function renderBulletList(ctx, frame, fps, mg, s, anim, isFullScreen) {
 }
 
 // 6. FOCUS WORD
+// Helper: wrap text into lines that fit within maxWidth
+function wrapTextWords(ctx, text, maxWidth) {
+    const words = text.split(/\s+/);
+    if (words.length <= 1) return [text];
+    const lines = [];
+    let currentLine = words[0];
+    for (let i = 1; i < words.length; i++) {
+        const test = currentLine + ' ' + words[i];
+        if (ctx.measureText(test).width <= maxWidth) {
+            currentLine = test;
+        } else {
+            lines.push(currentLine);
+            currentLine = words[i];
+        }
+    }
+    lines.push(currentLine);
+    return lines;
+}
+
 function renderFocusWord(ctx, frame, fps, mg, s, anim, isFullScreen) {
     const { enterLinear, isExiting, exitProgress, opacity } = anim;
 
@@ -501,44 +613,74 @@ function renderFocusWord(ctx, frame, fps, mg, s, anim, isFullScreen) {
 
     ctx.save();
 
-    // Scrim
-    ctx.fillStyle = `rgba(0,0,0,${scrimOpacity.toFixed(3)})`;
-    ctx.fillRect(0, 0, W, H);
+    // Dark scrim overlay for contrast (matches Remotion's AbsoluteFill rgba scrim)
+    if (isFullScreen) {
+        ctx.fillStyle = `rgba(0,0,0,${scrimOpacity.toFixed(3)})`;
+        ctx.fillRect(0, 0, W, H);
+    }
 
     ctx.globalAlpha = Math.min(1, opacity);
     ctx.translate(W / 2, H / 2);
     ctx.scale(scale, scale);
     if (blur > 0.5) ctx.filter = `blur(${blur.toFixed(1)}px)`;
 
-    // Draw word with letter spacing
     const word = (mg.text || '').toUpperCase();
-    setFont(ctx, '900', 96, s.fontHeading);
+
+    // Auto-size font: start at 96, shrink if text wraps to too many lines
+    // Remotion uses CSS which auto-wraps at container width; canvas needs manual sizing
+    const maxTextWidth = W * 0.8; // 80% of canvas width
+    let fontSize = 96;
+    setFont(ctx, '900', fontSize, s.fontHeading);
+    let lines = wrapTextWords(ctx, word, maxTextWidth);
+    // Shrink font if more than 2 lines
+    while (lines.length > 2 && fontSize > 48) {
+        fontSize -= 4;
+        setFont(ctx, '900', fontSize, s.fontHeading);
+        lines = wrapTextWords(ctx, word, maxTextWidth);
+    }
+
     ctx.fillStyle = s.accent;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    if (letterSpacing > 3) {
-        // Manual letter spacing
-        let totalW = 0;
-        const chars = word.split('');
-        const charWidths = chars.map(c => ctx.measureText(c).width);
-        totalW = charWidths.reduce((a, b) => a + b, 0) + (chars.length - 1) * letterSpacing;
-        let cx = -totalW / 2;
-        for (let i = 0; i < chars.length; i++) {
-            if (s.glow) {
-                ctx.shadowColor = s.accent + 'cc';
-                ctx.shadowBlur = 40;
-            } else {
-                ctx.shadowColor = 'rgba(0,0,0,0.9)';
-                ctx.shadowBlur = 30;
-                ctx.shadowOffsetY = 4;
+    const lineHeight = fontSize * 1.1;
+    const totalTextHeight = lines.length * lineHeight;
+    const startY = -totalTextHeight / 2 + lineHeight / 2;
+
+    // Draw each line with letter spacing animation
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const lineText = lines[lineIdx];
+        const lineY = startY + lineIdx * lineHeight;
+
+        if (letterSpacing > 3) {
+            // Manual letter spacing — draw char by char
+            const chars = lineText.split('');
+            const charWidths = chars.map(c => ctx.measureText(c).width);
+            const totalW = charWidths.reduce((a, b) => a + b, 0) + (chars.length - 1) * letterSpacing;
+            let cx = -totalW / 2;
+            for (let i = 0; i < chars.length; i++) {
+                const charX = cx + charWidths[i] / 2;
+                if (s.glow) {
+                    ctx.shadowColor = s.accent + '40';
+                    ctx.shadowBlur = 80;
+                    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+                    ctx.fillText(chars[i], charX, lineY);
+                    ctx.shadowColor = s.accent + 'cc';
+                    ctx.shadowBlur = 40;
+                    ctx.fillText(chars[i], charX, lineY);
+                } else {
+                    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                    ctx.shadowBlur = 30;
+                    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 4;
+                    ctx.fillText(chars[i], charX, lineY);
+                }
+                ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+                ctx.fillText(chars[i], charX, lineY);
+                cx += charWidths[i] + letterSpacing;
             }
-            ctx.fillText(chars[i], cx + charWidths[i] / 2, 0);
-            cx += charWidths[i] + letterSpacing;
+        } else {
+            drawTextShadowed(ctx, lineText, 0, lineY, s, true);
         }
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    } else {
-        drawTextShadowed(ctx, word, 0, 0, s, true);
     }
 
     ctx.filter = 'none';
@@ -550,7 +692,8 @@ function renderFocusWord(ctx, frame, fps, mg, s, anim, isFullScreen) {
         ctx.globalAlpha = Math.min(1, opacity) * subOpacity;
         setFont(ctx, '500', 28, s.fontBody);
         ctx.fillStyle = s.textSub;
-        drawTextShadowed(ctx, mg.subtext, 0, 80, s, false);
+        const subY = startY + lines.length * lineHeight + 20;
+        drawTextShadowed(ctx, mg.subtext, 0, subY, s, false);
     }
 
     ctx.restore();
@@ -1203,7 +1346,9 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
         throw new Error(`No canvas renderer for MG type: ${mg.type}`);
     }
 
-    // Spawn FFmpeg: raw RGBA → VP8 WebM with alpha
+    // Spawn FFmpeg: raw RGBA → FFV1 lossless in MKV with guaranteed alpha.
+    // VP8/VP9 WebM alpha is unreliable across FFmpeg/libvpx builds.
+    // FFV1 is FFmpeg's native lossless codec — alpha channel always works.
     const ffmpeg = spawn(FFMPEG_PATH, [
         '-y',
         '-f', 'rawvideo',
@@ -1211,12 +1356,9 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
         '-video_size', `${W}x${H}`,
         '-framerate', String(fps),
         '-i', 'pipe:0',
-        '-c:v', 'libvpx',
-        '-pix_fmt', 'yuva420p',
-        '-auto-alt-ref', '0',
-        '-b:v', '1500K',
-        '-quality', 'realtime',
-        '-cpu-used', '8',
+        '-c:v', 'ffv1',
+        '-pix_fmt', 'yuva444p',
+        '-level', '3',
         '-an',
         outputPath
     ], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -1227,8 +1369,10 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
     for (let frame = 0; frame < totalFrames; frame++) {
         ctx.clearRect(0, 0, W, H);
 
-        // Fullscreen MGs get opaque background + scale(1.5)
-        if (isFullScreen) {
+        // FocusWord and kineticText are transparent overlays (scrim handled internally)
+        // Other fullscreen MGs get opaque background + scale(1.5)
+        const transparentFullscreen = isFullScreen && (mg.type === 'focusWord' || mg.type === 'kineticText');
+        if (isFullScreen && !transparentFullscreen) {
             drawFullscreenBG(ctx, mg.style || 'clean');
             ctx.save();
             ctx.translate(W / 2, H / 2);
@@ -1239,11 +1383,28 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
         const anim = computeAnimationState(frame, fps, mg);
         renderFn(ctx, frame, fps, mg, s, anim, isFullScreen);
 
-        if (isFullScreen) ctx.restore();
+        if (isFullScreen && !transparentFullscreen) ctx.restore();
 
         // Get raw RGBA and pipe to FFmpeg
         const imageData = ctx.getImageData(0, 0, W, H);
         const buf = Buffer.from(imageData.data.buffer);
+
+        // Diagnostic: check alpha channel on first frame of first non-fullscreen MG
+        if (frame === 0 && !isFullScreen && !renderMGToWebM._alphaChecked) {
+            renderMGToWebM._alphaChecked = true;
+            const data = imageData.data;
+            let transparentPixels = 0;
+            let opaquePixels = 0;
+            // Sample every 100th pixel for speed
+            for (let i = 3; i < data.length; i += 400) {
+                if (data[i] === 0) transparentPixels++;
+                else opaquePixels++;
+            }
+            const total = transparentPixels + opaquePixels;
+            const pctTransparent = total > 0 ? ((transparentPixels / total) * 100).toFixed(1) : 0;
+            console.log(`  [CanvasMG] Alpha diagnostic (${mg.type}): ${pctTransparent}% transparent pixels (${transparentPixels}/${total} sampled) — overlay should be mostly transparent`);
+        }
+
         const canWrite = ffmpeg.stdin.write(buf);
         if (!canWrite) {
             await new Promise(resolve => ffmpeg.stdin.once('drain', resolve));
@@ -1255,7 +1416,7 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
     await new Promise((resolve, reject) => {
         ffmpeg.on('close', code => {
             if (code === 0) resolve();
-            else reject(new Error(`FFmpeg VP8 encode failed (code ${code}): ${ffmpegError.slice(-500)}`));
+            else reject(new Error(`FFmpeg FFV1 encode failed (code ${code}): ${ffmpegError.slice(-500)}`));
         });
         ffmpeg.on('error', reject);
     });
@@ -1266,9 +1427,9 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
 // ---------------------------------------------------------------------------
 
 /**
- * Render all canvas-compatible MGs to individual WebM clips.
+ * Render all canvas-compatible MGs to individual MKV clips (FFV1 lossless with alpha).
  * @param {Array} mgEntries - [{ mg, isFullScreen, originalIndex, category }]
- * @param {string} clipDir - output directory for WebM clips
+ * @param {string} clipDir - output directory for MKV clips
  * @param {number} fps
  * @param {object} scriptContext
  * @param {function} progressCb - (progress 0-1)
@@ -1276,16 +1437,30 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
 async function renderAll(mgEntries, clipDir, fps, scriptContext, progressCb) {
     if (!mgEntries || mgEntries.length === 0) return;
 
+    // Reset diagnostic flag for this render session
+    renderMGToWebM._alphaChecked = false;
+
+    console.log(`  [CanvasMG] Encoding ${mgEntries.length} MGs with FFV1 lossless (yuva444p) for guaranteed alpha transparency`);
+
+    const overlayCount = mgEntries.filter(e => !e.isFullScreen).length;
+    const fsCount = mgEntries.filter(e => e.isFullScreen).length;
+    console.log(`  [CanvasMG] ${overlayCount} overlay MGs (transparent bg), ${fsCount} fullscreen MGs (opaque bg)`);
+
     const MG_PARALLEL = 4;
     let done = 0;
 
     const tasks = mgEntries.map((entry) => async () => {
         const prefix = entry.category; // 'overlay' or 'fullscreen'
         const idx = entry.originalIndex;
-        const outFile = path.join(clipDir, `mg-${prefix}-${idx}.webm`);
+        const outFile = path.join(clipDir, `mg-${prefix}-${idx}.mkv`);
 
         try {
             await renderMGToWebM(entry.mg, outFile, fps, scriptContext, entry.isFullScreen);
+            // Log file size as sanity check
+            if (fs.existsSync(outFile)) {
+                const sizeKB = (fs.statSync(outFile).size / 1024).toFixed(0);
+                console.log(`  [CanvasMG] ${prefix}-${idx} (${entry.mg.type}): ${sizeKB}KB`);
+            }
         } catch (err) {
             console.error(`  [CanvasMG] Failed to render ${entry.mg.type} (${prefix}-${idx}): ${err.message}`);
         }
@@ -1294,7 +1469,7 @@ async function renderAll(mgEntries, clipDir, fps, scriptContext, progressCb) {
         if (progressCb) progressCb(done / mgEntries.length);
     });
 
-    // Run MG renders in parallel (each spawns its own FFmpeg VP8 encoder)
+    // Run MG renders in parallel (each spawns its own FFmpeg FFV1 encoder)
     const executing = new Set();
     for (const task of tasks) {
         const p = task().then(() => executing.delete(p));
@@ -1304,6 +1479,40 @@ async function renderAll(mgEntries, clipDir, fps, scriptContext, progressCb) {
         }
     }
     await Promise.all(executing);
+
+    // Post-encode verification: probe the first overlay MG clip for alpha
+    const firstOverlay = mgEntries.find(e => !e.isFullScreen);
+    if (firstOverlay) {
+        const probeFile = path.join(clipDir, `mg-overlay-${firstOverlay.originalIndex}.mkv`);
+        if (fs.existsSync(probeFile)) {
+            try {
+                const FFPROBE = process.env.FFPROBE_PATH || 'C:\\ffmg\\bin\\ffprobe.exe';
+                const { execFile } = require('child_process');
+                const probeResult = await new Promise((resolve) => {
+                    execFile(FFPROBE, [
+                        '-v', 'error',
+                        '-select_streams', 'v:0',
+                        '-show_entries', 'stream=pix_fmt,codec_name',
+                        '-of', 'json',
+                        probeFile
+                    ], { timeout: 10000 }, (err, stdout) => {
+                        if (err) { resolve(null); return; }
+                        try { resolve(JSON.parse(stdout)); } catch { resolve(null); }
+                    });
+                });
+                if (probeResult?.streams?.[0]) {
+                    const stream = probeResult.streams[0];
+                    const hasAlpha = stream.pix_fmt && stream.pix_fmt.includes('a');
+                    console.log(`  [CanvasMG] Probe overlay clip: codec=${stream.codec_name} pix_fmt=${stream.pix_fmt} alpha=${hasAlpha ? 'YES' : 'NO!!!'}`);
+                    if (!hasAlpha) {
+                        console.error(`  [CanvasMG] WARNING: MG overlay clip has NO alpha channel! Overlays will appear on black background.`);
+                    }
+                }
+            } catch (e) {
+                console.log(`  [CanvasMG] Could not probe MG clip: ${e.message}`);
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

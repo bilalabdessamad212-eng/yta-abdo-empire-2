@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const { spawn, execFile } = require('child_process');
 
+// Version marker — if you see this in the log, the latest code is loaded
+const RENDERER_VERSION = 'v4-2026-03-01';
+
 // ---------------------------------------------------------------------------
 // CONFIG
 // ---------------------------------------------------------------------------
@@ -12,7 +15,7 @@ const FFMPEG_PATH = process.env.FFMPEG_PATH || 'C:\\ffmg\\bin\\ffmpeg.exe';
 const FFPROBE_PATH = process.env.FFPROBE_PATH || 'C:\\ffmg\\bin\\ffprobe.exe';
 const OUTPUT_WIDTH = 1920;
 const OUTPUT_HEIGHT = 1080;
-const PARALLEL_LIMIT = 4;
+const PARALLEL_LIMIT = 2; // Keep at 2 to avoid NVENC session contention on consumer GPUs
 
 // Fast + close quality defaults (override via env if needed)
 const NVENC_PRESET_FAST = process.env.FFMPEG_NVENC_PRESET || 'p4';
@@ -92,6 +95,21 @@ function timer(label) {
     };
 }
 
+/**
+ * Get scene duration in SECONDS.
+ * scene.duration may be in frames (e.g., 553 for a 18.4s scene at 30fps).
+ * endTime - startTime is always in seconds and is the reliable source.
+ */
+function getSceneDurationSec(scene, fps) {
+    if (scene.endTime != null && scene.startTime != null && scene.endTime > scene.startTime) {
+        return scene.endTime - scene.startTime;
+    }
+    // Fallback: if duration > totalDuration or seems like frames, convert
+    const d = scene.duration || 0;
+    if (d > 100) return d / (fps || 30); // likely frames
+    return d;
+}
+
 // Cache NVENC probe result
 let _nvencAvailable = null;
 
@@ -151,35 +169,56 @@ function probeMedia(filePath) {
             try {
                 const data = JSON.parse(stdout);
                 const stream = data.streams?.[0] || {};
-                const dur = parseFloat(stream.duration) || parseFloat(data.format?.duration) || 0;
+                // CRITICAL: prefer format.duration over stream.duration.
+                // stream.duration can report source duration for tpad/trimmed clips, not output duration.
+                const dur = parseFloat(data.format?.duration) || parseFloat(stream.duration) || 0;
                 resolve({ width: stream.width || 0, height: stream.height || 0, duration: dur, codec: stream.codec_name });
             } catch (e) { reject(e); }
         });
     });
 }
 
-// Track active FFmpeg process for cancellation
-let _activeProcess = null;
+// Track ALL active FFmpeg processes for cancellation (parallel prep spawns multiple)
+const _activeProcesses = new Set();
 let _cancelled = false;
 
 function cancelRender() {
     _cancelled = true;
-    if (_activeProcess) {
-        try { _activeProcess.kill('SIGTERM'); } catch (e) { /* ignore */ }
-        _activeProcess = null;
+    log(`Cancelling render — killing ${_activeProcesses.size} active FFmpeg process(es)...`);
+    for (const proc of _activeProcesses) {
+        try {
+            // On Windows, kill the entire process tree
+            if (process.platform === 'win32' && proc.pid) {
+                require('child_process').exec(`taskkill /pid ${proc.pid} /f /t`, () => {});
+            } else {
+                proc.kill('SIGTERM');
+            }
+        } catch (e) { /* ignore */ }
     }
+    _activeProcesses.clear();
 }
 
-function runFFmpeg(args, onProgress, totalDuration) {
+function runFFmpeg(args, onProgress, totalDuration, timeoutMs) {
     return new Promise((resolve, reject) => {
         if (_cancelled) return reject(new Error('Cancelled'));
         const proc = spawn(FFMPEG_PATH, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-        _activeProcess = proc;
+        _activeProcesses.add(proc);
         let stderr = '';
         let settled = false;
         let lastProgressTime = Date.now();
+        const startTime = Date.now();
 
-        const settle = (fn) => { if (!settled) { settled = true; clearInterval(watchdog); fn(); } };
+        const killProc = () => {
+            try {
+                if (process.platform === 'win32' && proc.pid) {
+                    require('child_process').exec(`taskkill /pid ${proc.pid} /f /t`, () => {});
+                } else {
+                    proc.kill('SIGTERM');
+                }
+            } catch (e) { /* ignore */ }
+        };
+
+        const settle = (fn) => { if (!settled) { settled = true; clearInterval(watchdog); _activeProcesses.delete(proc); fn(); } };
 
         proc.stderr.on('data', (data) => {
             const text = data.toString();
@@ -196,24 +235,30 @@ function runFFmpeg(args, onProgress, totalDuration) {
             }
         });
 
-        // Watchdog: if no output for 60s after reaching near-end, kill & accept output
+        // Watchdog: silence detection + hard timeout
         const watchdog = setInterval(() => {
             const silentMs = Date.now() - lastProgressTime;
+            const totalMs = Date.now() - startTime;
+            // Kill if silent for 30s
             if (silentMs > 30000 && !settled) {
                 log('FFmpeg silent for 30s, killing process...');
-                try { proc.kill('SIGTERM'); } catch (e) { /* ignore */ }
+                killProc();
+            }
+            // Hard timeout — kill if scene takes way too long
+            if (timeoutMs && totalMs > timeoutMs && !settled) {
+                log(`FFmpeg hard timeout (${Math.round(totalMs / 1000)}s > ${Math.round(timeoutMs / 1000)}s limit), killing...`);
+                killProc();
             }
         }, 5000);
 
         proc.on('close', (code) => {
-            _activeProcess = null;
             settle(() => {
                 if (_cancelled) reject(new Error('Cancelled'));
                 else if (code === 0 || code === null) resolve(stderr);
                 else reject(new Error(`FFmpeg exited with code ${code}\n${stderr.slice(-1000)}`));
             });
         });
-        proc.on('error', (err) => { _activeProcess = null; settle(() => reject(err)); });
+        proc.on('error', (err) => { settle(() => reject(err)); });
     });
 }
 
@@ -260,7 +305,7 @@ async function generateBlackClip(outFile, duration, fps) {
 }
 
 async function prepareVideoScene(mediaPath, outFile, scene, fps) {
-    const duration = scene.duration || (scene.endTime - scene.startTime);
+    const duration = getSceneDurationSec(scene, fps);
     const offset = scene.mediaOffset || 0;
     const scale = scene.scale || 1;
     const posX = scene.posX || 0;
@@ -296,8 +341,10 @@ async function prepareVideoScene(mediaPath, outFile, scene, fps) {
 
     // Set FPS and reset timestamps
     vf.push(`fps=${fps}`);
-    // Pad with frozen last frame if source is shorter than needed, then trim to exact duration
-    vf.push(`tpad=stop_mode=clone:stop=-1`);
+    // tpad freezes the last frame if source is shorter than needed.
+    // Use a fixed frame count (not stop=-1 which creates infinite stream and corrupts duration metadata).
+    const padFrames = Math.ceil(duration * fps) + fps; // pad up to 1 extra second of frames
+    vf.push(`tpad=stop_mode=clone:stop=${padFrames}`);
     vf.push(`setpts=PTS-STARTPTS`);
 
     const useGpu = _nvencAvailable;
@@ -315,7 +362,10 @@ async function prepareVideoScene(mediaPath, outFile, scene, fps) {
         '-an', '-y', outFile
     ];
 
-    await runFFmpeg(args);
+    // Timeout: max 90s or 15x the scene duration — whichever is larger.
+    // If a scene takes longer than this, something is wrong — kill it and use black fallback.
+    const timeoutMs = Math.max(90000, Math.round(duration * 15 * 1000));
+    await runFFmpeg(args, null, null, timeoutMs);
 
     // Verify the prepared clip has correct duration
     try {
@@ -329,27 +379,15 @@ async function prepareVideoScene(mediaPath, outFile, scene, fps) {
 }
 
 async function prepareImageScene(mediaPath, outFile, scene, fps) {
-    const duration = scene.duration || (scene.endTime - scene.startTime);
-    const totalFrames = Math.ceil(duration * fps);
-    const kenBurns = scene.kenBurnsEnabled !== false; // default true for images
+    const duration = getSceneDurationSec(scene, fps);
+    const fitMode = scene.fitMode || 'cover';
 
-    // Note: zoompan is CPU-only and extremely slow (~5fps). For FFmpeg renderer
-    // we use a fast static-zoom approach: pre-scale the image slightly larger than
-    // 1920x1080, then pan slowly across it. This is 10-20x faster than zoompan.
+    // Static image → video: scale to 1920x1080, encode just enough frames.
+    // No zoompan/crop-pan (both are CPU-intensive and extremely slow).
+    // Ken Burns effect is subtle and not worth the 10-100x slowdown for prep.
     let vf;
-    if (kenBurns) {
-        // Fast Ken Burns: scale image to 112% of output, then slowly pan center→slightly-offset
-        // The slight motion gives the Ken Burns feel without CPU-heavy zoompan
-        const zoomScale = 1.12;
-        const scaledW = Math.round(OUTPUT_WIDTH * zoomScale);
-        const scaledH = Math.round(OUTPUT_HEIGHT * zoomScale);
-        // Slow pan from center to slight offset over the duration
-        const panPixels = Math.round((scaledW - OUTPUT_WIDTH) / 2);
-        vf = `scale=${scaledW}:${scaledH}:force_original_aspect_ratio=increase,` +
-             `crop=${scaledW}:${scaledH},` +
-             `crop=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:` +
-             `'${panPixels}*(1-t/${duration.toFixed(2)})':` +
-             `'${panPixels}*(1-t/${duration.toFixed(2)})'`;
+    if (fitMode === 'cover') {
+        vf = `scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:force_original_aspect_ratio=increase,crop=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}`;
     } else {
         vf = `scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:force_original_aspect_ratio=decrease,pad=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black`;
     }
@@ -361,6 +399,8 @@ async function prepareImageScene(mediaPath, outFile, scene, fps) {
         ? ['-c:v', 'h264_nvenc', '-preset', NVENC_PRESET_FAST, '-b:v', PREP_VIDEO_BITRATE]
         : ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', CPU_FALLBACK_CRF];
 
+    // Timeout: 60s or 10x duration — images should be fast (no decoding overhead)
+    const timeoutMs = Math.max(60000, Math.round(duration * 10 * 1000));
     await runFFmpeg([
         '-loop', '1', '-i', mediaPath,
         '-t', String(duration),
@@ -368,7 +408,7 @@ async function prepareImageScene(mediaPath, outFile, scene, fps) {
         ...encArgs,
         '-pix_fmt', 'yuv420p',
         '-an', '-y', outFile
-    ]);
+    ], null, null, timeoutMs);
     return outFile;
 }
 
@@ -613,7 +653,7 @@ async function preRenderMGs(plan, publicDir, prepDir, progressCallback) {
 // PASS 2: FILTER GRAPH BUILDER
 // ---------------------------------------------------------------------------
 
-async function buildFilterGraph(plan, prepDir, overlayPrepDir) {
+async function buildFilterGraph(plan, prepDir, overlayPrepDir, publicDir) {
     const fps = plan.fps || 30;
     const track1Scenes = getTrackScenes(plan, 'video-track-1');
     const track2Scenes = getTrackScenes(plan, 'video-track-2');
@@ -688,9 +728,14 @@ async function buildFilterGraph(plan, prepDir, overlayPrepDir) {
             try {
                 const info = await probeMedia(prepFile);
                 if (info.duration > 0) {
-                    actualDuration = info.duration;
-                    if (Math.abs(actualDuration - scene.duration) > 0.5) {
-                        log(`Scene ${scene.index}: plan=${scene.duration.toFixed(2)}s actual=${actualDuration.toFixed(2)}s`);
+                    // Safety: if probed duration is >2x expected, something is wrong — use planned duration
+                    if (info.duration > scene.duration * 2) {
+                        log(`⚠ Scene ${scene.index}: probed ${info.duration.toFixed(2)}s >> expected ${scene.duration.toFixed(2)}s — using planned duration`);
+                    } else {
+                        actualDuration = info.duration;
+                        if (Math.abs(actualDuration - scene.duration) > 0.5) {
+                            log(`Scene ${scene.index}: plan=${scene.duration.toFixed(2)}s actual=${actualDuration.toFixed(2)}s`);
+                        }
                     }
                 }
             } catch (e) { /* fallback to scene.duration */ }
@@ -791,77 +836,30 @@ async function buildFilterGraph(plan, prepDir, overlayPrepDir) {
     }
 
     // -----------------------------------------------------------------------
-    // Section C: Overlay videos (grain, dust, lightLeak)
-    // SKIPPED in FFmpeg renderer v1 — these cause hangs with stream duration mismatches.
-    // VFX filters below (vignette, letterbox, colorTint) still apply.
+    // Section C: Overlay videos (grain, dust, lightLeak) — DISABLED until rebuild
+    // (preview doesn't render these, so applying them causes visual mismatch)
     // -----------------------------------------------------------------------
 
     // -----------------------------------------------------------------------
-    // Section D: Code-generated VFX (vignette, letterbox, chromatic, colorTint)
+    // Section D: Code-generated VFX — DISABLED until rebuild
+    // (vignette, letterbox, colorTint, chromatic — preview doesn't render
+    //  these, so applying them here causes visual mismatch)
     // -----------------------------------------------------------------------
-    const vfxByScene = {};
-    (plan.visualEffects || []).forEach(ve => {
-        vfxByScene[ve.sceneIndex] = ve.effects || [];
-    });
-
-    // Collect all scene time ranges that have VFX
-    for (const scene of (plan.scenes || [])) {
-        const effects = vfxByScene[scene.index];
-        if (!effects || effects.length === 0) continue;
-
-        const startT = scene.startTime || 0;
-        const endT = scene.endTime || (startT + scene.duration);
-        const enable = `between(t,${startT.toFixed(3)},${endT.toFixed(3)})`;
-
-        for (const fx of effects) {
-            const outLabel = nextLabel('fx');
-            const intensity = fx.intensity || 0.3;
-
-            switch (fx.type) {
-                case 'vignette': {
-                    const angle = Math.PI / (2 + intensity * 3); // higher intensity = stronger vignette
-                    filters.push(`${baseLabel}vignette=a=${angle.toFixed(4)}:enable='${enable}'[${outLabel}]`);
-                    baseLabel = `[${outLabel}]`;
-                    break;
-                }
-                case 'letterbox': {
-                    const barH = Math.round(OUTPUT_HEIGHT * intensity * 0.12);
-                    filters.push(`${baseLabel}drawbox=y=0:w=iw:h=${barH}:c=black:t=fill:enable='${enable}',drawbox=y=ih-${barH}:w=iw:h=${barH}:c=black:t=fill:enable='${enable}'[${outLabel}]`);
-                    baseLabel = `[${outLabel}]`;
-                    break;
-                }
-                case 'colorTint': {
-                    const tint = fx.tint || 'warm';
-                    let mixer;
-                    if (tint === 'sepia') {
-                        mixer = `colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131:enable='${enable}'`;
-                    } else if (tint === 'cool') {
-                        mixer = `colorbalance=bs=${(intensity * 0.3).toFixed(2)}:bm=${(intensity * 0.2).toFixed(2)}:enable='${enable}'`;
-                    } else { // warm
-                        mixer = `colorbalance=rs=${(intensity * 0.3).toFixed(2)}:gs=${(intensity * 0.1).toFixed(2)}:enable='${enable}'`;
-                    }
-                    filters.push(`${baseLabel}${mixer}[${outLabel}]`);
-                    baseLabel = `[${outLabel}]`;
-                    break;
-                }
-                // chromatic aberration - skip in v1 (complex filter)
-                // grain - handled by overlay video
-            }
-        }
-    }
 
     // -----------------------------------------------------------------------
-    // Section E: Motion Graphics (batch-rendered Remotion VP8 clips with alpha)
+    // Section E: Motion Graphics (canvas-rendered FFV1 MKV clips with alpha)
     // -----------------------------------------------------------------------
-    // Individual MG clips split from the batch render: mg-overlay-N.webm, mg-fullscreen-N.webm
-    // VP8 WebM supports alpha channel — overlay filter handles transparency automatically.
+    // Individual MG clips: mg-overlay-N.mkv (canvas FFV1) or mg-overlay-N.webm (Remotion VP8 fallback)
+    // FFV1 yuva444p has guaranteed alpha — overlay filter (format=auto) handles transparency.
     const mgClipDir = overlayPrepDir;
     const mgs = plan.motionGraphics || [];
     if (mgClipDir && mgs.length > 0) {
         log(`Overlaying ${mgs.length} MG clips in filter graph`);
         let overlayIdx = 0;
         for (const mg of mgs) {
-            const clipFile = path.join(mgClipDir, `mg-overlay-${overlayIdx}.webm`);
+            // Try .mkv first (canvas FFV1), fall back to .webm (Remotion VP8)
+            let clipFile = path.join(mgClipDir, `mg-overlay-${overlayIdx}.mkv`);
+            if (!fs.existsSync(clipFile)) clipFile = path.join(mgClipDir, `mg-overlay-${overlayIdx}.webm`);
             overlayIdx++;
             if (!fs.existsSync(clipFile)) continue;
 
@@ -918,7 +916,9 @@ async function buildFilterGraph(plan, prepDir, overlayPrepDir) {
             log(`Overlaying ${mgScenes.length} fullscreen MG clips in filter graph`);
             let fsIdx = 0;
             for (const scene of mgScenes) {
-                const clipFile = path.join(mgClipDir, `mg-fullscreen-${fsIdx}.webm`);
+                // Try .mkv first (canvas FFV1), fall back to .webm (Remotion VP8)
+                let clipFile = path.join(mgClipDir, `mg-fullscreen-${fsIdx}.mkv`);
+                if (!fs.existsSync(clipFile)) clipFile = path.join(mgClipDir, `mg-fullscreen-${fsIdx}.webm`);
                 fsIdx++;
                 if (!fs.existsSync(clipFile)) continue;
 
@@ -1066,7 +1066,7 @@ function buildSubtitleFilter(plan, baseLabel) {
 
 async function renderWithFFmpeg(plan, options = {}) {
     _cancelled = false;
-    _activeProcess = null;
+    _activeProcesses.clear();
 
     const {
         publicDir,
@@ -1107,7 +1107,8 @@ async function renderWithFFmpeg(plan, options = {}) {
     // ==== Probe NVENC at startup ====
     await probeNvenc();
 
-    log(`Starting FFmpeg${_nvencAvailable ? ' GPU' : ' CPU'} render (${totalDuration.toFixed(1)}s, ${fps}fps)`);
+    log(`FFmpeg renderer ${RENDERER_VERSION} loaded`);
+    log(`Starting FFmpeg${_nvencAvailable ? ' GPU' : ' CPU'} render (${totalDuration.toFixed(1)}s, ${fps}fps, parallel=${PARALLEL_LIMIT})`);
     log(`Output: ${outputPath}`);
 
     // ==== PASS 1: Prepare scenes ====
@@ -1116,6 +1117,12 @@ async function renderWithFFmpeg(plan, options = {}) {
 
     const allScenes = (plan.scenes || []).filter(s => !s.isMGScene && !s.isOverlay && !s.disabled);
     let preparedCount = 0;
+
+    // Log scene durations to confirm they're in seconds
+    allScenes.forEach(s => {
+        const dur = getSceneDurationSec(s, fps);
+        log(`  Plan scene ${s.index}: ${(s.mediaType || 'video')} dur=${dur.toFixed(2)}s (raw duration=${s.duration})`);
+    });
 
     const prepareTasks = allScenes.map((scene) => async () => {
         try {
@@ -1131,7 +1138,7 @@ async function renderWithFFmpeg(plan, options = {}) {
             // Generate black clip fallback
             await generateBlackClip(
                 path.join(prepDir, `prep-${scene.index}.mp4`),
-                scene.duration || (scene.endTime - scene.startTime),
+                getSceneDurationSec(scene, fps),
                 fps
             );
         }
@@ -1161,7 +1168,7 @@ async function renderWithFFmpeg(plan, options = {}) {
     const pass2Timer = timer('Pass 2 — FFmpeg compose + encode');
     progressCallback({ percent: 42, message: 'Building composition...' });
 
-    const { inputs, filters, videoOutLabel } = await buildFilterGraph(plan, prepDir, mgClipDir);
+    const { inputs, filters, videoOutLabel } = await buildFilterGraph(plan, prepDir, mgClipDir, publicDir);
 
     // Add audio
     const { audioFilters, audioOutLabel } = buildAudioMix(plan, publicDir, inputs);
@@ -1172,16 +1179,22 @@ async function renderWithFFmpeg(plan, options = {}) {
     fs.writeFileSync(filterFile, allFilters.join(';\n'));
 
     log(`Filter graph: ${allFilters.length} filters, ${inputs.length} inputs`);
-    log(`Inputs:\n${inputs.map((f, i) => `  [${i}] ${path.basename(f)}`).join('\n')}`);
+    log(`Inputs:\n${inputs.map((f, i) => {
+        if (typeof f === 'object') return `  [${i}] ${path.basename(f.file)}${f.streamLoop ? ' (looped)' : ''}`;
+        return `  [${i}] ${path.basename(f)}`;
+    }).join('\n')}`);
     log(`Filter graph written to: ${filterFile}`);
 
     // Build FFmpeg command
     const inputArgs = [];
     for (const inp of inputs) {
-        if (inp.startsWith('color=') || inp.startsWith('nullsrc')) {
-            inputArgs.push('-f', 'lavfi', '-i', inp);
+        const file = typeof inp === 'object' ? inp.file : inp;
+        const streamLoop = typeof inp === 'object' && inp.streamLoop;
+        if (file.startsWith('color=') || file.startsWith('nullsrc')) {
+            inputArgs.push('-f', 'lavfi', '-i', file);
         } else {
-            inputArgs.push('-i', inp);
+            if (streamLoop) inputArgs.push('-stream_loop', '-1');
+            inputArgs.push('-i', file);
         }
     }
 
@@ -1264,11 +1277,11 @@ async function renderWithFFmpeg(plan, options = {}) {
         }
     }
 
-    // Cleanup prep directory (keep filter_graph.txt for debugging)
+    // Cleanup prep directory (keep filter_graph.txt + mg-clips for debugging)
     try {
         const prepFiles = fs.readdirSync(prepDir);
         for (const f of prepFiles) {
-            if (f === 'filter_graph.txt') continue; // keep for debugging
+            if (f === 'filter_graph.txt' || f === 'mg-clips') continue; // keep for debugging
             const fp = path.join(prepDir, f);
             if (fs.statSync(fp).isDirectory()) {
                 // Clean mg-clips subdirectory

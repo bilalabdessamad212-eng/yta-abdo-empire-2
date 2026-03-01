@@ -63,7 +63,28 @@ All steps produce data that feeds into `public/video-plan.json`, which is the co
 
 `src/nvidia-client.js` rotates multiple API keys (comma-separated in `NVIDIA_API_KEYS` env var). Switches on 429/401/403 status codes AND timeouts. Text and vision models are separate (`NVIDIA_MODEL` and `NVIDIA_VISION_MODEL` env vars).
 
-## GPU Rendering
+## FFmpeg GPU Renderer (`src/ffmpeg-renderer.js`)
+
+Alternative to Remotion — reads same `video-plan.json`, uses pure FFmpeg compositing + NVENC GPU encoding. Selected via UI dropdown (`#renderer-select`).
+
+**Pipeline**: Pass 1 (prep clips, parallel, limit=2) → Pass 1.5 (MG pre-render) → Pass 2 (filter_complex_script compose + encode)
+
+**MG Rendering** — Hybrid canvas + Remotion:
+- `src/canvas-mg-renderer.js`: @napi-rs/canvas (Rust/Skia) renders 14 MG types at ~200fps. Raw RGBA piped to FFmpeg → **FFV1 lossless in MKV** (`-c:v ffv1 -pix_fmt yuva444p`) for guaranteed alpha transparency. Outputs `mg-overlay-N.mkv` / `mg-fullscreen-N.mkv`.
+- `src/mg-style-utils.js`: Shared styles/colors between canvas renderer and MotionGraphics.jsx
+- Remotion fallback for 3 complex types: mapChart, articleHighlight, animatedIcons (VP8 WebM)
+- Compose step tries `.mkv` first (canvas FFV1), falls back to `.webm` (Remotion VP8)
+
+**Critical bugs found and fixed**:
+- `scene.duration` is in FRAMES not seconds — `getSceneDurationSec()` uses `endTime - startTime`
+- VP8/VP9 WebM alpha is unreliable — switched to FFV1 MKV for guaranteed alpha
+- `renderFocusWord` scrim was drawing opaque fill on ALL MGs — wrapped in `isFullScreen` check
+- CUDA `-hwaccel cuda` caused empty output files — removed entirely
+- Single `_activeProcess` couldn't cancel parallel preps — changed to `_activeProcesses = new Set()`
+
+**FFmpeg path**: `C:\ffmg\bin\ffmpeg.exe` (system FFmpeg with NVENC, NOT Remotion's bundled one). NVENC probed once at startup, falls back to libx264.
+
+## Remotion GPU Rendering
 
 Remotion's bundled FFmpeg lacks NVENC. Patched `node_modules/@remotion/renderer/dist/get-codec-name.js` to return `h264_nvenc` on win32. Replaced Remotion's bundled `ffmpeg.exe` with system FFmpeg that has NVENC. Both patches are lost on `npm install`.
 
