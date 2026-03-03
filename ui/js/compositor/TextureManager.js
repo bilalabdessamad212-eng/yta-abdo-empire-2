@@ -21,7 +21,11 @@ class TextureManager {
 
         // Determine source dimensions
         let w, h;
-        if (source instanceof HTMLVideoElement) {
+        if (typeof VideoFrame !== 'undefined' && source instanceof VideoFrame) {
+            // WebCodecs VideoFrame — already decoded, always ready
+            w = source.displayWidth;
+            h = source.displayHeight;
+        } else if (source instanceof HTMLVideoElement) {
             w = source.videoWidth;
             h = source.videoHeight;
             // Skip if video hasn't decoded a frame yet

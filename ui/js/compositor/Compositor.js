@@ -49,6 +49,13 @@ class Compositor {
 
         // Flip buffer for export (readPixels returns bottom-up)
         this._flipBuf = null;
+
+        // EXPORT-ONLY: WebCodecs VideoFrame overrides for optimized export.
+        // - null during preview (default) — _getSceneTexture ignores it
+        // - Set to Map<sceneIndex, VideoFrame> ONLY by ExportPipeline._runOptimizedFrameLoop()
+        // - Guarded by this._exporting in _getSceneTexture (never checked in preview)
+        // - Cleared to null by _resetVideosForPreview() and ExportPipeline finally block
+        this._exportFrameSources = null;
     }
 
     // ========================================================================
@@ -396,10 +403,16 @@ class Compositor {
      */
     _getSceneTexture(scene, frame) {
         const idx = scene.index;
+        const texId = `scene-${idx}`;
+
+        // EXPORT-ONLY: use WebCodecs VideoFrame if provided by optimized export loop
+        if (this._exporting && this._exportFrameSources && this._exportFrameSources.has(idx)) {
+            const vf = this._exportFrameSources.get(idx);
+            if (vf) return this.textureManager.createOrUpdate(texId, vf);
+        }
+
         const el = this._videoElements[idx];
         if (!el) return null;
-
-        const texId = `scene-${idx}`;
 
         if (el instanceof HTMLVideoElement) {
             // Sync video time for preview mode
@@ -665,6 +678,9 @@ class Compositor {
      * Seeks all videos to time 0 and ensures they are ready for playback.
      */
     _resetVideosForPreview() {
+        // Always clear export-only VideoFrame overrides
+        this._exportFrameSources = null;
+
         for (const key of Object.keys(this._videoElements)) {
             const el = this._videoElements[key];
             if (el instanceof HTMLVideoElement) {

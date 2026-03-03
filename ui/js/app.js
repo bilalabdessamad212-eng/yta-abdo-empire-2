@@ -5241,14 +5241,20 @@ function initCompositor() {
             });
         }
 
-        // Auto-activate when WebGL2 renderer is selected
+        // Auto-activate when WebGL2 renderer is selected + show legacy toggle
         const rendererSelect = document.getElementById('renderer-select');
+        const legacyLabel = document.getElementById('legacy-export-label');
         if (rendererSelect) {
+            const updateLegacyVisibility = () => {
+                if (legacyLabel) legacyLabel.style.display = rendererSelect.value === 'webgl2' ? 'flex' : 'none';
+            };
             rendererSelect.addEventListener('change', () => {
                 if (rendererSelect.value === 'webgl2' && !state.compositorActive) {
                     setCompositorMode(true);
                 }
+                updateLegacyVisibility();
             });
+            updateLegacyVisibility();
         }
     } catch (e) {
         console.error('[Compositor] Failed to create engine:', e);
@@ -5354,15 +5360,28 @@ async function renderVideoWebGL2() {
     }
     await loadPlanIntoCompositor();
 
+    const legacyToggle = document.getElementById('legacy-export-toggle');
+    const useLegacy = legacyToggle && legacyToggle.checked;
+    const fps = state.videoPlan.fps || 30;
+
     const pipeline = new ExportPipeline(state.compositor);
     pipeline.onProgress((data) => {
-        updateProgress(data.percent, `Rendering frame ${data.currentFrame}/${data.totalFrames} (${data.fps} fps)`);
+        const mode = useLegacy ? 'Legacy' : 'Optimized';
+        updateProgress(data.percent, `[${mode}] Rendering frame ${data.currentFrame}/${data.totalFrames} (${data.fps} fps)`);
     });
+
+    // Run validation hashes before export (logs to console for A/B comparison)
+    const totalFrames = state.compositor.totalFrames;
+    const testFrames = [0, 100, Math.min(500, totalFrames - 1), totalFrames - 1].filter((f, i, a) => a.indexOf(f) === i);
+    console.log(`[WebGL2 Export] Running frame hash validation on frames: ${testFrames.join(', ')}`);
+    const hashes = await pipeline.validate(testFrames);
+    console.log('[WebGL2 Export] Validation hashes:', JSON.stringify(hashes));
 
     const result = await pipeline.start({
         width: 1920,
         height: 1080,
-        fps: state.videoPlan.fps || 30,
+        fps,
+        legacy: useLegacy,
     });
 
     return result;
