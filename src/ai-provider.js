@@ -276,7 +276,8 @@ async function _qwenText(prompt, maxTokens, temperature, systemPrompt) {
     };
     if (temperature !== undefined) body.temperature = temperature;
 
-    const response = await axios.post('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', body, {
+    const baseUrl = config.qwen.baseUrl || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+    const response = await axios.post(`${baseUrl}/chat/completions`, body, {
         headers: {
             'Authorization': `Bearer ${config.qwen.apiKey}`,
             'Content-Type': 'application/json'
@@ -422,7 +423,8 @@ async function _deepseekVision(prompt, base64Image, mimeType, maxTokens) {
 async function _qwenVision(prompt, base64Image, mimeType, maxTokens) {
     if (!config.qwen.apiKey) throw new Error('Qwen API key not set');
 
-    const response = await axios.post('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    const baseUrl = config.qwen.baseUrl || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+    const response = await axios.post(`${baseUrl}/chat/completions`, {
         model: config.qwen.visionModel,
         messages: [{
             role: 'user',

@@ -56,8 +56,9 @@ const config = {
     // Qwen / Alibaba DashScope API settings (cheap)
     qwen: {
         apiKey: process.env.QWEN_API_KEY || '',
-        model: 'qwen-turbo',
-        visionModel: 'qwen-vl-plus'
+        baseUrl: process.env.QWEN_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+        model: process.env.QWEN_MODEL || 'qwen3-omni-flash',
+        visionModel: process.env.QWEN_VISION_MODEL || 'qwen3-omni-flash'
     },
 
     // Google Gemini API settings (free tier available, text + vision)

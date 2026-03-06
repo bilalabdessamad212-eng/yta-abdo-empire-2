@@ -2,8 +2,7 @@
  * MGRenderer.js — Motion Graphics renderer via Canvas2D -> WebGL texture
  * Renders MG overlays to an offscreen canvas, then uploads as a texture.
  *
- * For Slice 0: only 'headline' type is implemented.
- * The rendering code is ported directly from src/canvas-mg-renderer.js.
+ * All 14 canvas MG types ported from src/canvas-mg-renderer.js.
  */
 
 class MGRenderer {
@@ -20,10 +19,6 @@ class MGRenderer {
     /**
      * Render a motion graphic for the given local frame.
      * Returns a TextureManager entry { texture, width, height } or null.
-     *
-     * @param {object} mg - MG spec object from video-plan.json
-     * @param {number} localFrame - Frame number relative to MG start (0 = first frame)
-     * @param {object} scriptContext - Script context from plan (for theme)
      */
     renderMG(mg, localFrame, scriptContext) {
         const ctx = this._ctx;
@@ -49,6 +44,50 @@ class MGRenderer {
                 this._renderCallout(ctx, localFrame, this.fps, mg, s, anim);
                 rendered = true;
                 break;
+            case 'focusWord':
+                this._renderFocusWord(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'statCounter':
+                this._renderStatCounter(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'bulletList':
+                this._renderBulletList(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'progressBar':
+                this._renderProgressBar(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'barChart':
+                this._renderBarChart(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'donutChart':
+                this._renderDonutChart(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'comparisonCard':
+                this._renderComparisonCard(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'timeline':
+                this._renderTimeline(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'rankingList':
+                this._renderRankingList(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'kineticText':
+                this._renderKineticText(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
+            case 'subscribeCTA':
+                this._renderSubscribeCTA(ctx, localFrame, this.fps, mg, s, anim);
+                rendered = true;
+                break;
             default:
                 // Fallback: render any unknown MG type as a headline so text is visible
                 if (mg.text) {
@@ -71,20 +110,17 @@ class MGRenderer {
 
     _getStyle(mg, scriptContext) {
         const styleName = mg.style || 'clean';
-        // Use the global MG_STYLES from app.js (already in scope)
         const baseS = (typeof MG_STYLES !== 'undefined' ? MG_STYLES[styleName] : null) || {
             primary: '#3b82f6', accent: '#f59e0b', bg: 'rgba(0,0,0,0.7)',
             text: '#ffffff', textSub: 'rgba(255,255,255,0.75)', glow: false,
         };
 
-        // Try to get theme-styled colors (uses app.js globals)
         let styled = null;
         if (typeof getStyledThemeColors === 'function') {
             styled = getStyledThemeColors(styleName);
         }
         const s = styled ? { ...baseS, ...styled } : { ...baseS };
 
-        // Get theme fonts
         if (typeof getActiveThemeFonts === 'function') {
             const tf = getActiveThemeFonts();
             if (tf) {
@@ -99,10 +135,9 @@ class MGRenderer {
     }
 
     // ========================================================================
-    // POSITION HELPERS (ported from canvas-mg-renderer.js)
+    // POSITION HELPERS
     // ========================================================================
 
-    // Positions matched to CSS preview: bottom-left=padding 0 0 8% 4%, top=5%, center-left=5%
     static CANVAS_POS = {
         'center':       { anchorX: 0.5, anchorY: 0.5, padX: 0, padY: 0 },
         'bottom-left':  { anchorX: 0, anchorY: 1, padX: 77, padY: -86 },
@@ -120,7 +155,7 @@ class MGRenderer {
     }
 
     // ========================================================================
-    // DRAWING HELPERS (ported from canvas-mg-renderer.js)
+    // DRAWING HELPERS
     // ========================================================================
 
     static _setFont(ctx, weight, size, family) {
@@ -153,7 +188,6 @@ class MGRenderer {
             ctx.shadowOffsetY = strong ? 2 : 1;
             ctx.fillText(text, x, y);
         }
-        // Crisp text on top (no shadow)
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
         ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
@@ -171,8 +205,57 @@ class MGRenderer {
         ctx.fillRect(x, y, w, h);
     }
 
+    static _roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+    }
+
+    static _parseKeyValuePairs(subtext) {
+        if (!subtext || subtext === 'none') return [];
+        const raw = subtext.split(',').map(s => s.trim()).filter(Boolean);
+        const results = [];
+        for (const part of raw) {
+            const colonIdx = part.indexOf(':');
+            if (colonIdx !== -1) {
+                results.push({ label: part.substring(0, colonIdx).trim(), value: part.substring(colonIdx + 1).trim() });
+            } else if (results.length > 0 && /^\d+$/.test(part.trim())) {
+                results[results.length - 1].value += ',' + part.trim();
+            } else if (part.trim()) {
+                results.push({ label: part.trim(), value: '0' });
+            }
+        }
+        return results;
+    }
+
+    static _wrapTextWords(ctx, text, maxWidth) {
+        const words = text.split(/\s+/);
+        if (words.length <= 1) return [text];
+        const lines = [];
+        let currentLine = words[0];
+        for (let i = 1; i < words.length; i++) {
+            const test = currentLine + ' ' + words[i];
+            if (ctx.measureText(test).width <= maxWidth) {
+                currentLine = test;
+            } else {
+                lines.push(currentLine);
+                currentLine = words[i];
+            }
+        }
+        lines.push(currentLine);
+        return lines;
+    }
+
     // ========================================================================
-    // HEADLINE RENDERER (ported from canvas-mg-renderer.js renderHeadline)
+    // 1. HEADLINE
     // ========================================================================
 
     _renderHeadline(ctx, frame, fps, mg, s, anim) {
@@ -187,14 +270,12 @@ class MGRenderer {
             : interpolate(enterSpring, [0, 1], [30, 0]);
         const blur = isExiting ? 0 : interpolate(enterLinear, [0, 0.6], [6, 0], { extrapolateRight: 'clamp' });
 
-        // Accent bar — delay 0.25s, damping 20, duration 0.3s
         const barDelay = Math.round((0.25 / speed) * fps);
         const barSpring = springValue(Math.max(0, frame - barDelay), fps, {
             damping: 20, stiffness: 100, durationInFrames: Math.round((0.3 / speed) * fps),
         });
         const barWidth = barSpring * 300;
 
-        // Subtext — delay 0.2s, damping 18
         const subDelay = Math.round(0.2 * fps);
         const subSpring = springValue(Math.max(0, frame - subDelay), fps, { damping: 18, stiffness: 100 });
         const subOpacity = isExiting ? exitProgress : subSpring;
@@ -202,12 +283,10 @@ class MGRenderer {
         ctx.save();
         ctx.globalAlpha = Math.min(1, opacity);
 
-        // Position — adapt alignment to avoid clipping off canvas edges
         const position = mg.position || 'center';
         const isLeft = position.includes('left');
         const isRight = position.includes('right');
 
-        // Measure text to get actual width
         MGRenderer._setFont(ctx, '900', 72, s.fontHeading);
         const textW = ctx.measureText(mg.text || '').width;
         const contentW = Math.max(800, textW + 40);
@@ -215,7 +294,7 @@ class MGRenderer {
 
         let cx, textAlign, textX, barX;
         if (isLeft) {
-            cx = pos.x + 20;  // left edge with padding
+            cx = pos.x + 20;
             textAlign = 'left';
             textX = 0;
             barX = 0;
@@ -237,7 +316,6 @@ class MGRenderer {
 
         if (blur > 0.5) ctx.filter = `blur(${blur.toFixed(1)}px)`;
 
-        // Main text
         ctx.fillStyle = s.text;
         ctx.textAlign = textAlign;
         ctx.textBaseline = 'middle';
@@ -245,12 +323,10 @@ class MGRenderer {
 
         ctx.filter = 'none';
 
-        // Accent bar
         if (barWidth > 1) {
             MGRenderer._drawGradientRect(ctx, barX, 15, barWidth, 4, s.primary, s.accent);
         }
 
-        // Subtext
         if (mg.subtext && subOpacity > 0.01) {
             ctx.globalAlpha = Math.min(1, opacity) * subOpacity;
             MGRenderer._setFont(ctx, '500', 26, s.fontBody);
@@ -263,7 +339,7 @@ class MGRenderer {
     }
 
     // ========================================================================
-    // LOWER THIRD RENDERER (ported from canvas-mg-renderer.js)
+    // 2. LOWER THIRD
     // ========================================================================
 
     _renderLowerThird(ctx, frame, fps, mg, s, anim) {
@@ -287,20 +363,16 @@ class MGRenderer {
         ctx.save();
         ctx.globalAlpha = Math.min(1, isExiting ? exitProgress : opacity);
 
-        // Position at bottom-left
         const baseX = 60;
         const baseY = 1080 - 200;
 
-        // Clip-path reveal (horizontal wipe from left)
         ctx.beginPath();
         ctx.rect(baseX, baseY - 20, 700 * (clipAmount / 100), 200);
         ctx.clip();
 
-        // Vertical accent bar
         const accentH = 120 * barScaleY;
         MGRenderer._drawGradientRect(ctx, baseX, baseY + 60 - accentH / 2, 4, accentH, s.primary, s.accent, 'vertical');
 
-        // Main text
         MGRenderer._setFont(ctx, '700', 36, s.fontHeading);
         ctx.fillStyle = s.text;
         ctx.textAlign = 'left';
@@ -308,7 +380,6 @@ class MGRenderer {
         ctx.globalAlpha = Math.min(1, opacity) * textSpring;
         MGRenderer._drawTextShadowed(ctx, mg.text || '', baseX + 20 + textSlideX, baseY + 20, s, true);
 
-        // Subtext
         if (mg.subtext) {
             ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : subSpring);
             MGRenderer._setFont(ctx, '500', 22, s.fontBody);
@@ -320,7 +391,63 @@ class MGRenderer {
     }
 
     // ========================================================================
-    // CALLOUT RENDERER (ported from canvas-mg-renderer.js)
+    // 3. STAT COUNTER
+    // ========================================================================
+
+    _renderStatCounter(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate, easeOutCubic } = AnimationUtils;
+        const { enterSpring, enterLinear, isExiting, exitProgress, opacity, idleScale, enterFrames, totalFrames } = anim;
+
+        const numberMatch = (mg.text || '').match(/[\d,.]+/);
+        const targetNumber = numberMatch ? parseFloat(numberMatch[0].replace(/,/g, '')) : 0;
+        const prefix = (mg.text || '').substring(0, (mg.text || '').indexOf(numberMatch?.[0] || '')).trim();
+        const suffix = (mg.text || '').substring((mg.text || '').indexOf(numberMatch?.[0] || '') + (numberMatch?.[0]?.length || 0)).trim();
+
+        const countStart = Math.round(enterFrames * 0.4);
+        const countEnd = Math.max(countStart + 1, Math.min(enterFrames + fps, totalFrames - 15));
+        const rawCount = interpolate(frame, [countStart, countEnd], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        const countProgress = easeOutCubic(rawCount);
+
+        const currentNumber = targetNumber % 1 !== 0
+            ? (targetNumber * countProgress).toFixed(1)
+            : Math.round(targetNumber * countProgress).toLocaleString();
+
+        const scale = isExiting
+            ? interpolate(exitProgress, [0, 1], [0.95, 1])
+            : interpolate(enterSpring, [0, 1], [0.5, 1]);
+        const blur = isExiting ? 0 : interpolate(enterLinear, [0, 0.4], [4, 0], { extrapolateRight: 'clamp' });
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const pos = MGRenderer._getPosXY(mg.position || 'center', 400, 150);
+        const cx = pos.x + 200;
+        const cy = pos.y + 75;
+
+        ctx.translate(cx, cy);
+        ctx.scale(scale * idleScale, scale * idleScale);
+        if (blur > 0.5) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+
+        MGRenderer._setFont(ctx, '900', 96, s.fontHeading);
+        ctx.fillStyle = s.accent;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        MGRenderer._drawTextShadowed(ctx, `${prefix}${currentNumber}`, 0, -10, s, true);
+
+        ctx.filter = 'none';
+
+        const label = suffix || mg.subtext || '';
+        if (label) {
+            MGRenderer._setFont(ctx, '600', 28, s.fontBody);
+            ctx.fillStyle = s.text;
+            MGRenderer._drawTextShadowed(ctx, label, 0, 50, s, false);
+        }
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 4. CALLOUT
     // ========================================================================
 
     _renderCallout(ctx, frame, fps, mg, s, anim) {
@@ -341,7 +468,6 @@ class MGRenderer {
         ctx.save();
         ctx.globalAlpha = Math.min(1, isExiting ? exitProgress : opacity);
 
-        // Measure text to size box
         MGRenderer._setFont(ctx, '600', 34, s.fontHeading);
         const textWidth = Math.min(ctx.measureText(mg.text || '').width + 80, 1920 * 0.7);
         const boxW = Math.max(400, textWidth);
@@ -352,7 +478,6 @@ class MGRenderer {
         ctx.scale(scale * idleScale, scale * idleScale);
         if (blur > 0.5) ctx.filter = `blur(${blur.toFixed(1)}px)`;
 
-        // Background box
         if (s.glow) {
             ctx.shadowColor = s.primary + '30';
             ctx.shadowBlur = 10;
@@ -371,7 +496,6 @@ class MGRenderer {
 
         ctx.filter = 'none';
 
-        // Quote mark
         ctx.globalAlpha = Math.min(1, opacity) * quoteSpring * 0.6;
         MGRenderer._setFont(ctx, '900', 64, s.fontHeading);
         ctx.fillStyle = s.primary;
@@ -379,7 +503,6 @@ class MGRenderer {
         ctx.textBaseline = 'top';
         ctx.fillText('\u201C', -boxW / 2 + 20, -boxH / 2 - 24 + quoteY);
 
-        // Main text (italic)
         ctx.globalAlpha = Math.min(1, isExiting ? exitProgress : opacity);
         MGRenderer._setFont(ctx, 'italic 600', 34, s.fontHeading);
         ctx.fillStyle = s.text;
@@ -387,7 +510,6 @@ class MGRenderer {
         ctx.textBaseline = 'middle';
         MGRenderer._drawTextShadowed(ctx, mg.text || '', 0, mg.subtext ? -15 : 0, s, false);
 
-        // Attribution
         if (mg.subtext) {
             MGRenderer._setFont(ctx, '500', 20, s.fontBody);
             ctx.fillStyle = s.textSub || 'rgba(255,255,255,0.75)';
@@ -398,21 +520,763 @@ class MGRenderer {
     }
 
     // ========================================================================
-    // ROUND RECT HELPER
+    // 5. BULLET LIST
     // ========================================================================
 
-    static _roundRect(ctx, x, y, w, h, r) {
+    _renderBulletList(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate } = AnimationUtils;
+        const { enterSpring, enterFrames, isExiting, exitProgress } = anim;
+        const items = (mg.text || '').split(/[,;]|\d+\.\s/).map(t => t.trim()).filter(Boolean);
+        const staggerDelay = Math.round(fps * 0.25);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, isExiting ? exitProgress : enterSpring);
+
+        const pos = MGRenderer._getPosXY(mg.position || 'center-left', 600, items.length * 50);
+
+        items.forEach((item, i) => {
+            const itemDelay = Math.round(enterFrames * 0.2 + i * staggerDelay);
+            const itemSpring = springValue(Math.max(0, frame - itemDelay), fps, { damping: 16, stiffness: 120 });
+            const slideX = interpolate(itemSpring, [0, 1], [40, 0]);
+            const itemBlur = interpolate(itemSpring, [0, 0.5], [3, 0], { extrapolateRight: 'clamp' });
+
+            const y = pos.y + i * 50;
+            ctx.globalAlpha = Math.min(1, (isExiting ? exitProgress : 1)) * itemSpring;
+
+            ctx.save();
+            if (itemBlur > 0.5) ctx.filter = `blur(${itemBlur.toFixed(1)}px)`;
+
+            ctx.beginPath();
+            ctx.arc(pos.x + 5 + slideX, y + 15, 5, 0, Math.PI * 2);
+            ctx.fillStyle = s.accent;
+            ctx.fill();
+            if (s.glow) {
+                ctx.shadowColor = s.accent + '80';
+                ctx.shadowBlur = 8;
+                ctx.fill();
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            }
+
+            MGRenderer._setFont(ctx, '600', 30, s.fontBody);
+            ctx.fillStyle = s.text;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            MGRenderer._drawTextShadowed(ctx, item, pos.x + 26 + slideX, y + 15, s, false);
+
+            ctx.restore();
+        });
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 6. FOCUS WORD
+    // ========================================================================
+
+    _renderFocusWord(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate } = AnimationUtils;
+        const { enterLinear, isExiting, exitProgress, opacity } = anim;
+        const speed = mg._animationSpeed || 1.0;
+
+        const snapSpring = springValue(frame, fps, { damping: 20, stiffness: 250, durationInFrames: Math.round((0.4 / speed) * fps) });
+        const scale = isExiting
+            ? interpolate(exitProgress, [0, 1], [1.3, 1])
+            : interpolate(snapSpring, [0, 1], [1.8, 1]);
+        const blur = isExiting
+            ? interpolate(exitProgress, [0, 1], [6, 0])
+            : interpolate(enterLinear, [0, 0.3], [8, 0], { extrapolateRight: 'clamp' });
+        const letterSpacing = interpolate(snapSpring, [0, 1], [20, 2]);
+        const scrimOpacity = interpolate(enterLinear, [0, 0.15], [0, 0.3], { extrapolateRight: 'clamp' }) * (isExiting ? exitProgress : 1);
+
+        ctx.save();
+
+        // Dark scrim overlay
+        ctx.fillStyle = `rgba(0,0,0,${scrimOpacity.toFixed(3)})`;
+        ctx.fillRect(0, 0, 1920, 1080);
+
+        ctx.globalAlpha = Math.min(1, opacity);
+        ctx.translate(1920 / 2, 1080 / 2);
+        ctx.scale(scale, scale);
+        if (blur > 0.5) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+
+        const word = (mg.text || '').toUpperCase();
+
+        const maxTextWidth = 1920 * 0.8;
+        let fontSize = 96;
+        MGRenderer._setFont(ctx, '900', fontSize, s.fontHeading);
+        let lines = MGRenderer._wrapTextWords(ctx, word, maxTextWidth);
+        while (lines.length > 2 && fontSize > 48) {
+            fontSize -= 4;
+            MGRenderer._setFont(ctx, '900', fontSize, s.fontHeading);
+            lines = MGRenderer._wrapTextWords(ctx, word, maxTextWidth);
+        }
+
+        ctx.fillStyle = s.accent;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const lineHeight = fontSize * 1.1;
+        const totalTextHeight = lines.length * lineHeight;
+        const startY = -totalTextHeight / 2 + lineHeight / 2;
+
+        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            const lineText = lines[lineIdx];
+            const lineY = startY + lineIdx * lineHeight;
+
+            if (letterSpacing > 3) {
+                const chars = lineText.split('');
+                const charWidths = chars.map(c => ctx.measureText(c).width);
+                const totalW = charWidths.reduce((a, b) => a + b, 0) + (chars.length - 1) * letterSpacing;
+                let cx = -totalW / 2;
+                for (let i = 0; i < chars.length; i++) {
+                    const charX = cx + charWidths[i] / 2;
+                    if (s.glow) {
+                        ctx.shadowColor = s.accent + '40';
+                        ctx.shadowBlur = 80;
+                        ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+                        ctx.fillText(chars[i], charX, lineY);
+                        ctx.shadowColor = s.accent + 'cc';
+                        ctx.shadowBlur = 40;
+                        ctx.fillText(chars[i], charX, lineY);
+                    } else {
+                        ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                        ctx.shadowBlur = 30;
+                        ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 4;
+                        ctx.fillText(chars[i], charX, lineY);
+                    }
+                    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+                    ctx.fillText(chars[i], charX, lineY);
+                    cx += charWidths[i] + letterSpacing;
+                }
+            } else {
+                MGRenderer._drawTextShadowed(ctx, lineText, 0, lineY, s, true);
+            }
+        }
+
+        ctx.filter = 'none';
+
+        if (mg.subtext) {
+            const subOpacity = interpolate(enterLinear, [0.5, 0.75], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+                * (isExiting ? exitProgress : 1);
+            ctx.globalAlpha = Math.min(1, opacity) * subOpacity;
+            MGRenderer._setFont(ctx, '500', 28, s.fontBody);
+            ctx.fillStyle = s.textSub || 'rgba(255,255,255,0.75)';
+            const subY = startY + lines.length * lineHeight + 20;
+            MGRenderer._drawTextShadowed(ctx, mg.subtext, 0, subY, s, false);
+        }
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 7. PROGRESS BAR
+    // ========================================================================
+
+    _renderProgressBar(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate, easeOutCubic } = AnimationUtils;
+        const { enterSpring, enterLinear, isExiting, exitProgress, opacity, idleScale, enterFrames, totalFrames } = anim;
+
+        const numMatch = (mg.text || '').match(/[\d,.]+/);
+        const targetPct = numMatch ? Math.min(100, parseFloat(numMatch[0].replace(/,/g, ''))) : 75;
+        const label = (mg.text || '').replace(/[\d,.]+%?/, '').trim() || mg.subtext || '';
+
+        const fillStart = Math.round(enterFrames * 0.5);
+        const fillEnd = Math.max(fillStart + 1, Math.min(enterFrames + Math.round(fps * 0.3), totalFrames - 15));
+        const fillProgress = easeOutCubic(interpolate(frame, [fillStart, fillEnd], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }));
+        const currentPct = Math.round(targetPct * fillProgress);
+
+        const scale = isExiting
+            ? interpolate(exitProgress, [0, 1], [0.97, 1])
+            : interpolate(enterSpring, [0, 1], [0.9, 1]);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const barW = 1920 * 0.6;
+        const pos = MGRenderer._getPosXY(mg.position || 'center', barW, 120);
+        const cx = pos.x + barW / 2;
+        const cy = pos.y + 60;
+
+        ctx.translate(cx, cy);
+        ctx.scale(scale * idleScale, scale * idleScale);
+
+        if (label) {
+            MGRenderer._setFont(ctx, '700', 28, s.fontBody);
+            ctx.fillStyle = s.text;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            MGRenderer._drawTextShadowed(ctx, label, 0, -40, s, false);
+        }
+
+        const trackW = barW;
+        const trackH = 24;
+        MGRenderer._roundRect(ctx, -trackW / 2, -trackH / 2, trackW, trackH, 12);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const fillW = trackW * (targetPct * fillProgress / 100);
+        if (fillW > 1) {
+            MGRenderer._roundRect(ctx, -trackW / 2, -trackH / 2, fillW, trackH, 12);
+            const grad = ctx.createLinearGradient(-trackW / 2, 0, -trackW / 2 + fillW, 0);
+            grad.addColorStop(0, s.primary);
+            grad.addColorStop(1, s.accent);
+            ctx.fillStyle = grad;
+            if (s.glow) { ctx.shadowColor = s.primary + '80'; ctx.shadowBlur = 16; }
+            ctx.fill();
+            ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+        }
+
+        MGRenderer._setFont(ctx, '900', 48, s.fontHeading);
+        ctx.fillStyle = s.accent;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        MGRenderer._drawTextShadowed(ctx, `${currentPct}%`, 0, 45, s, true);
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 8. BAR CHART
+    // ========================================================================
+
+    _renderBarChart(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate, easeOutCubic } = AnimationUtils;
+        const { enterFrames, isExiting, exitProgress, opacity, idleScale } = anim;
+        const items = MGRenderer._parseKeyValuePairs(mg.subtext);
+        const maxVal = Math.max(...items.map(i => parseFloat(i.value) || 0), 1);
+        const staggerDelay = Math.round(fps * 0.15);
+        const barCount = Math.min(items.length, 6);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const chartW = 1920 * 0.6;
+        const chartH = 300;
+        const pos = MGRenderer._getPosXY(mg.position || 'center', chartW, chartH + 80);
+        const cx = pos.x + chartW / 2;
+        const topY = pos.y;
+
+        ctx.translate(cx, topY);
+        ctx.scale(idleScale, idleScale);
+
+        MGRenderer._setFont(ctx, '700', 36, s.fontHeading);
+        ctx.fillStyle = s.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        MGRenderer._drawTextShadowed(ctx, mg.text || '', 0, 0, s, true);
+
+        const barAreaW = chartW;
+        const barGap = 20;
+        const singleBarW = (barAreaW - (barCount - 1) * barGap) / barCount;
+        const barAreaTop = 60;
+        const barAreaH = chartH;
+
+        for (let i = 0; i < barCount; i++) {
+            const item = items[i];
+            const barDelay = Math.round(enterFrames * 0.3 + i * staggerDelay);
+            const barSpring = springValue(Math.max(0, frame - barDelay), fps, { damping: 14, stiffness: 80 });
+            const numVal = parseFloat(item.value) || 0;
+            const heightPct = (numVal / maxVal);
+            const barH = heightPct * barSpring * (barAreaH - 40);
+            const bx = -barAreaW / 2 + i * (singleBarW + barGap);
+            const by = barAreaTop + barAreaH - barH;
+
+            const valDelay = barDelay + Math.round(fps * 0.2);
+            const valOpacity = interpolate(frame, [valDelay, valDelay + Math.round(fps * 0.15)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+            ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : valOpacity);
+            MGRenderer._setFont(ctx, '700', 24, s.fontHeading);
+            ctx.fillStyle = s.accent;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            MGRenderer._drawTextShadowed(ctx, item.value, bx + singleBarW / 2, by - 6, s, false);
+
+            ctx.globalAlpha = Math.min(1, opacity);
+            if (barH > 0) {
+                const grad = ctx.createLinearGradient(0, by, 0, by + barH);
+                grad.addColorStop(0, s.accent);
+                grad.addColorStop(1, s.primary);
+                ctx.fillStyle = grad;
+                MGRenderer._roundRect(ctx, bx, by, singleBarW, barH, 6);
+                if (s.glow) { ctx.shadowColor = s.primary + '60'; ctx.shadowBlur = 12; }
+                ctx.fill();
+                ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+            }
+
+            MGRenderer._setFont(ctx, '500', 18, s.fontBody);
+            ctx.fillStyle = s.textSub || 'rgba(255,255,255,0.75)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(item.label, bx + singleBarW / 2, barAreaTop + barAreaH + 8);
+        }
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 9. DONUT CHART
+    // ========================================================================
+
+    _renderDonutChart(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate, easeOutCubic } = AnimationUtils;
+        const { enterSpring, enterFrames, isExiting, exitProgress, opacity, idleScale } = anim;
+        const items = MGRenderer._parseKeyValuePairs(mg.subtext);
+        const total = items.reduce((sum, i) => sum + (parseFloat(i.value) || 0), 0) || 100;
+        const radius = 100;
+        const strokeWidth = 30;
+        const staggerDelay = Math.round(fps * 0.2);
+        const segColors = [s.primary, s.accent, s.primary + 'bb', s.accent + 'bb', s.primary + '88'];
+
+        const scale = isExiting
+            ? interpolate(exitProgress, [0, 1], [0.95, 1])
+            : interpolate(enterSpring, [0, 1], [0.7, 1]);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const pos = MGRenderer._getPosXY(mg.position || 'center', 520, 300);
+
+        ctx.translate(pos.x + 260, pos.y + 150);
+        ctx.scale(scale * idleScale, scale * idleScale);
+
+        MGRenderer._setFont(ctx, '700', 32, s.fontHeading);
+        ctx.fillStyle = s.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        MGRenderer._drawTextShadowed(ctx, mg.text || '', 0, -140, s, true);
+
+        ctx.lineWidth = strokeWidth;
+        ctx.lineCap = 'round';
+        let cumulativeAngle = -Math.PI / 2;
+
+        items.slice(0, 5).forEach((item, i) => {
+            const pct = (parseFloat(item.value) || 0) / total;
+            const segAngle = pct * Math.PI * 2;
+            const drawDelay = Math.round(enterFrames * 0.2 + i * staggerDelay);
+            const drawProgress = easeOutCubic(interpolate(frame, [drawDelay, drawDelay + Math.round(fps * 0.5)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }));
+            const drawAngle = segAngle * drawProgress;
+
+            if (drawAngle > 0.01) {
+                ctx.beginPath();
+                ctx.arc(-130, 20, radius, cumulativeAngle, cumulativeAngle + drawAngle);
+                ctx.strokeStyle = segColors[i % segColors.length];
+                ctx.stroke();
+            }
+            cumulativeAngle += segAngle;
+        });
+
+        const centerDelay = Math.round(enterFrames * 0.4);
+        const centerOpacity = interpolate(frame, [centerDelay, centerDelay + Math.round(fps * 0.3)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : centerOpacity);
+        MGRenderer._setFont(ctx, '900', 36, s.fontHeading);
+        ctx.fillStyle = s.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const mainPct = items.length > 0 ? Math.round((parseFloat(items[0].value) || 0) / total * 100) : 0;
+        MGRenderer._drawTextShadowed(ctx, `${mainPct}%`, -130, 20, s, false);
+
+        items.slice(0, 5).forEach((item, i) => {
+            const legendDelay = Math.round(enterFrames * 0.5 + i * Math.round(fps * 0.12));
+            const legendOpacity = interpolate(frame, [legendDelay, legendDelay + Math.round(fps * 0.2)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+            ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : legendOpacity);
+
+            const ly = -40 + i * 30;
+            ctx.beginPath();
+            ctx.arc(30, ly, 7, 0, Math.PI * 2);
+            ctx.fillStyle = segColors[i % segColors.length];
+            ctx.fill();
+            MGRenderer._setFont(ctx, '500', 20, s.fontBody);
+            ctx.fillStyle = s.text;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(item.label, 45, ly);
+            ctx.fillStyle = s.textSub || 'rgba(255,255,255,0.75)';
+            MGRenderer._setFont(ctx, '600', 20, s.fontBody);
+            ctx.fillText(`${item.value}%`, 45 + ctx.measureText(item.label).width + 10, ly);
+        });
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 10. COMPARISON CARD
+    // ========================================================================
+
+    _renderComparisonCard(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate } = AnimationUtils;
+        const { enterSpring, isExiting, exitProgress, opacity, idleScale, speed } = anim;
+
+        const parts = (mg.text || '').split(/\s+vs\.?\s+/i);
+        const itemA = parts[0] || 'A';
+        const itemB = parts[1] || 'B';
+
+        const slideX = isExiting
+            ? interpolate(exitProgress, [0, 1], [60, 0])
+            : interpolate(enterSpring, [0, 1], [200, 0]);
+
+        const vsDelay = Math.round((0.3 / speed) * fps);
+        const vsSpring = springValue(Math.max(0, frame - vsDelay), fps, { damping: 12, stiffness: 150, durationInFrames: Math.round((0.4 / speed) * fps) });
+
+        const subDelay = Math.round((0.5 / speed) * fps);
+        const subOpacity = interpolate(frame, [subDelay, subDelay + Math.round((0.3 / speed) * fps)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const boxW = 1920 * 0.35;
+        const boxH = 120;
+        const gap = 100;
+        const totalW = boxW * 2 + gap;
+        const pos = MGRenderer._getPosXY(mg.position || 'center', totalW, boxH);
+        const cx = pos.x + totalW / 2;
+        const cy = pos.y + boxH / 2;
+
+        ctx.translate(cx, cy);
+        ctx.scale(idleScale, idleScale);
+
+        // Left box
+        ctx.save();
+        ctx.translate(-boxW / 2 - gap / 2 - slideX, 0);
+        MGRenderer._roundRect(ctx, -boxW / 2, -boxH / 2, boxW, boxH, 16);
+        ctx.fillStyle = s.primary + '25';
+        ctx.fill();
+        ctx.strokeStyle = s.primary + '40';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        MGRenderer._setFont(ctx, '800', 42, s.fontHeading);
+        ctx.fillStyle = s.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        MGRenderer._drawTextShadowed(ctx, itemA.toUpperCase(), 0, 0, s, true);
+        ctx.restore();
+
+        // Right box
+        ctx.save();
+        ctx.translate(boxW / 2 + gap / 2 + slideX, 0);
+        MGRenderer._roundRect(ctx, -boxW / 2, -boxH / 2, boxW, boxH, 16);
+        ctx.fillStyle = s.accent + '25';
+        ctx.fill();
+        ctx.strokeStyle = s.accent + '40';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        MGRenderer._setFont(ctx, '800', 42, s.fontHeading);
+        ctx.fillStyle = s.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        MGRenderer._drawTextShadowed(ctx, itemB.toUpperCase(), 0, 0, s, true);
+        ctx.restore();
+
+        // VS circle
+        ctx.save();
+        ctx.scale(vsSpring, vsSpring);
         ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.arcTo(x + w, y, x + w, y + r, r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-        ctx.lineTo(x + r, y + h);
-        ctx.arcTo(x, y + h, x, y + h - r, r);
-        ctx.lineTo(x, y + r);
-        ctx.arcTo(x, y, x + r, y, r);
-        ctx.closePath();
+        ctx.arc(0, 0, 40, 0, Math.PI * 2);
+        const vsGrad = ctx.createLinearGradient(-40, -40, 40, 40);
+        vsGrad.addColorStop(0, s.primary);
+        vsGrad.addColorStop(1, s.accent);
+        ctx.fillStyle = vsGrad;
+        if (s.glow) { ctx.shadowColor = s.primary + '80'; ctx.shadowBlur = 24; }
+        else { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 20; }
+        ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+        MGRenderer._setFont(ctx, '900', 28, s.fontHeading);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('VS', 0, 0);
+        ctx.restore();
+
+        // Subtext
+        if (mg.subtext && mg.subtext !== 'none') {
+            ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : subOpacity);
+            MGRenderer._setFont(ctx, '500', 22, s.fontBody);
+            ctx.fillStyle = s.textSub || 'rgba(255,255,255,0.75)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            MGRenderer._drawTextShadowed(ctx, mg.subtext, 0, boxH / 2 + 40, s, false);
+        }
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 11. TIMELINE
+    // ========================================================================
+
+    _renderTimeline(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate } = AnimationUtils;
+        const { enterSpring, enterFrames, isExiting, exitProgress, opacity, idleScale } = anim;
+        const items = MGRenderer._parseKeyValuePairs(mg.subtext);
+        const staggerDelay = Math.round(fps * 0.25);
+        const lineWidth = interpolate(enterSpring, [0, 1], [0, 100]);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const tlW = 1920 * 0.75;
+        const pos = MGRenderer._getPosXY(mg.position || 'center', tlW, 200);
+        const cx = pos.x + tlW / 2;
+        const cy = pos.y + 100;
+
+        ctx.translate(cx, cy);
+        ctx.scale(idleScale, idleScale);
+
+        if (mg.text) {
+            MGRenderer._setFont(ctx, '700', 32, s.fontHeading);
+            ctx.fillStyle = s.text;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            MGRenderer._drawTextShadowed(ctx, mg.text, 0, -70, s, true);
+        }
+
+        const lineW = tlW * lineWidth / 100;
+        if (lineW > 0) {
+            MGRenderer._drawGradientRect(ctx, -tlW / 2, -1.5, lineW, 3, s.primary, s.accent);
+            if (s.glow) {
+                ctx.shadowColor = s.primary + '60';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(-tlW / 2, -1.5, lineW, 3);
+                ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+            }
+        }
+
+        items.slice(0, 5).forEach((item, i) => {
+            const pct = items.length > 1 ? i / (items.length - 1) : 0.5;
+            const mx = -tlW / 2 + pct * tlW;
+            const markerDelay = Math.round(enterFrames * 0.3 + i * staggerDelay);
+            const markerSpring = springValue(Math.max(0, frame - markerDelay), fps, { damping: 16, stiffness: 120 });
+            const slideY = interpolate(markerSpring, [0, 1], [-25, 0]);
+
+            ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : markerSpring);
+
+            MGRenderer._setFont(ctx, '700', 22, s.fontHeading);
+            ctx.fillStyle = s.accent;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            MGRenderer._drawTextShadowed(ctx, item.label, mx, -12 + slideY, s, false);
+
+            ctx.beginPath();
+            ctx.arc(mx, slideY, 7, 0, Math.PI * 2);
+            ctx.fillStyle = s.accent;
+            ctx.strokeStyle = s.text;
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+            if (s.glow) { ctx.shadowColor = s.accent + '80'; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
+
+            MGRenderer._setFont(ctx, '500', 18, s.fontBody);
+            ctx.fillStyle = s.text;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            MGRenderer._drawTextShadowed(ctx, item.value, mx, 16 + slideY, s, false);
+        });
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 12. RANKING LIST
+    // ========================================================================
+
+    _renderRankingList(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate, easeOutCubic } = AnimationUtils;
+        const { enterFrames, isExiting, exitProgress, opacity, idleScale } = anim;
+        const items = MGRenderer._parseKeyValuePairs(mg.subtext);
+        const maxVal = Math.max(...items.map(i => parseFloat(i.value) || 0), 1);
+        const staggerDelay = Math.round(fps * 0.18);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        const listW = 1920 * 0.55;
+        const rowH = 50;
+        const pos = MGRenderer._getPosXY(mg.position || 'center-left', listW, items.length * rowH + 60);
+
+        ctx.translate(pos.x, pos.y);
+        ctx.scale(idleScale, idleScale);
+
+        MGRenderer._setFont(ctx, '700', 34, s.fontHeading);
+        ctx.fillStyle = s.text;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        MGRenderer._drawTextShadowed(ctx, mg.text || '', 0, 0, s, true);
+
+        items.slice(0, 6).forEach((item, i) => {
+            const rowDelay = Math.round(enterFrames * 0.2 + i * staggerDelay);
+            const rowSpring = springValue(Math.max(0, frame - rowDelay), fps, { damping: 16, stiffness: 120 });
+            const slideX = interpolate(rowSpring, [0, 1], [50, 0]);
+            const rowBlur = interpolate(rowSpring, [0, 0.5], [3, 0], { extrapolateRight: 'clamp' });
+            const numVal = parseFloat(item.value) || 0;
+            const barDelay = rowDelay + Math.round(fps * 0.15);
+            const barRaw = interpolate(frame, [barDelay, barDelay + Math.round(fps * 0.6)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+            const barWidth = easeOutCubic(barRaw) * (numVal / maxVal) * (listW - 60);
+            const isTop = i === 0;
+            const ry = 50 + i * rowH;
+
+            ctx.globalAlpha = Math.min(1, opacity) * (isExiting ? exitProgress : rowSpring);
+
+            ctx.save();
+            if (rowBlur > 0.5) ctx.filter = `blur(${rowBlur.toFixed(1)}px)`;
+
+            MGRenderer._setFont(ctx, '900', 30, s.fontHeading);
+            ctx.fillStyle = isTop ? s.accent : (s.textSub || 'rgba(255,255,255,0.75)');
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            MGRenderer._drawTextShadowed(ctx, `${i + 1}`, 24 + slideX, ry + 20, s, isTop);
+
+            MGRenderer._setFont(ctx, '600', 22, s.fontBody);
+            ctx.fillStyle = s.text;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            MGRenderer._drawTextShadowed(ctx, item.label, 60 + slideX, ry + 12, s, false);
+
+            MGRenderer._setFont(ctx, '700', 20, s.fontHeading);
+            ctx.fillStyle = s.accent;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(item.value, listW + slideX, ry + 12);
+
+            ctx.filter = 'none';
+
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            MGRenderer._roundRect(ctx, 60 + slideX, ry + 28, listW - 60, 8, 4);
+            ctx.fill();
+
+            if (barWidth > 0) {
+                const barGrad = ctx.createLinearGradient(60, 0, 60 + barWidth, 0);
+                barGrad.addColorStop(0, isTop ? s.accent : s.primary + '99');
+                barGrad.addColorStop(1, isTop ? s.primary : s.primary + '55');
+                ctx.fillStyle = barGrad;
+                MGRenderer._roundRect(ctx, 60 + slideX, ry + 28, barWidth, 8, 4);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        });
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 13. KINETIC TEXT
+    // ========================================================================
+
+    _renderKineticText(ctx, frame, fps, mg, s, anim) {
+        const { springValue, interpolate } = AnimationUtils;
+        const { enterLinear, isExiting, exitProgress, opacity } = anim;
+
+        const words = (mg.text || '').split(/\s+/);
+        const staggerDelay = Math.round(fps * 0.08);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, opacity);
+
+        MGRenderer._setFont(ctx, '800', 60, s.fontHeading);
+        const wordWidths = words.map(w => ctx.measureText(w).width);
+        const gap = 18;
+        const maxRowW = 1920 * 0.7;
+
+        const rows = [];
+        let currentRow = [];
+        let currentW = 0;
+        for (let i = 0; i < words.length; i++) {
+            if (currentW + wordWidths[i] + (currentRow.length > 0 ? gap : 0) > maxRowW && currentRow.length > 0) {
+                rows.push(currentRow);
+                currentRow = [];
+                currentW = 0;
+            }
+            currentRow.push({ word: words[i], width: wordWidths[i], index: i });
+            currentW += wordWidths[i] + gap;
+        }
+        if (currentRow.length > 0) rows.push(currentRow);
+
+        const rowHeight = 80;
+        const totalH = rows.length * rowHeight;
+        const startY = 1080 / 2 - totalH / 2;
+
+        rows.forEach((row, ri) => {
+            const rowW = row.reduce((a, r) => a + r.width, 0) + (row.length - 1) * gap;
+            let rx = 1920 / 2 - rowW / 2;
+
+            row.forEach((entry) => {
+                const wordDelay = entry.index * staggerDelay;
+                const wordSpring = springValue(Math.max(0, frame - wordDelay), fps, { damping: 16, stiffness: 120 });
+                const wordScale = interpolate(wordSpring, [0, 1], [1.5, 1]);
+                const wordOpacity = wordSpring;
+                const wordBlur = interpolate(wordSpring, [0, 0.5], [6, 0], { extrapolateRight: 'clamp' });
+
+                ctx.save();
+                ctx.globalAlpha = Math.min(1, opacity) * wordOpacity * (isExiting ? exitProgress : 1);
+                ctx.translate(rx + entry.width / 2, startY + ri * rowHeight + rowHeight / 2);
+                ctx.scale(wordScale, wordScale);
+                if (wordBlur > 0.5) ctx.filter = `blur(${wordBlur.toFixed(1)}px)`;
+
+                MGRenderer._setFont(ctx, '800', 60, s.fontHeading);
+                ctx.fillStyle = s.text;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                MGRenderer._drawTextShadowed(ctx, entry.word, 0, 0, s, true);
+
+                ctx.restore();
+                rx += entry.width + gap;
+            });
+        });
+
+        ctx.restore();
+    }
+
+    // ========================================================================
+    // 14. SUBSCRIBE CTA
+    // ========================================================================
+
+    _renderSubscribeCTA(ctx, frame, fps, mg, s, anim) {
+        const { interpolate } = AnimationUtils;
+        const { totalFrames, opacity } = anim;
+
+        const progress = frame / totalFrames;
+        const pulseScale = Math.sin(progress * Math.PI * 4 * 2) * 0.05 + 1;
+        const fadeIn = interpolate(frame, [0, Math.round(0.3 * fps)], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        const fadeOut = interpolate(frame, [totalFrames - Math.round(0.4 * fps), totalFrames], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+        const alpha = Math.min(fadeIn, fadeOut);
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, alpha);
+
+        const text = mg.text || 'Subscribe';
+        MGRenderer._setFont(ctx, 'bold', 28, s.fontHeading);
+        const textW = ctx.measureText(text).width;
+        const pillW = textW + 100;
+        const pillH = 60;
+
+        const pos = MGRenderer._getPosXY(mg.position || 'bottom-right', pillW, pillH);
+        const cx = pos.x + pillW / 2;
+        const cy = pos.y + pillH / 2;
+
+        ctx.translate(cx, cy);
+        ctx.scale(pulseScale, pulseScale);
+
+        MGRenderer._roundRect(ctx, -pillW / 2, -pillH / 2, pillW, pillH, 30);
+        const grad = ctx.createLinearGradient(-pillW / 2, 0, pillW / 2, 0);
+        grad.addColorStop(0, s.primary);
+        grad.addColorStop(1, s.accent);
+        ctx.fillStyle = grad;
+        if (s.glow) { ctx.shadowColor = s.primary + '80'; ctx.shadowBlur = 20; }
+        else { ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 12; }
+        ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        MGRenderer._setFont(ctx, 'normal', 32, 'Segoe UI Emoji, Arial');
+        ctx.fillText('\uD83D\uDD14', -pillW / 2 + 36, 1);
+        MGRenderer._setFont(ctx, 'bold', 28, s.fontHeading);
+        ctx.fillText(text, 18, 0);
+
+        ctx.restore();
     }
 
     /**

@@ -225,6 +225,7 @@ const state = {
     // Motion Graphics system - AI-placed text overlays
     motionGraphics: [],
     mgEnabled: true,
+    fastNativeMGs: true,
     subtitlesEnabled: false,
     mgStyle: 'clean',
     aiInstructions: '',
@@ -412,6 +413,7 @@ const elements = {
     sfxVolumeLabel: document.getElementById('sfx-volume-label'),
     // Motion Graphics controls
     mgEnabled: document.getElementById('mg-enabled'),
+    fastNativeMGs: document.getElementById('fast-native-mgs'),
     // Subtitles
     subtitlesEnabled: document.getElementById('subtitles-enabled'),
 };
@@ -465,7 +467,179 @@ function getActiveScenesAtTime(time) {
 // ========================================
 // Initialize
 // ========================================
+// ========================================
+// Capture Mode (hidden window for Preview Capture renderer)
+// ========================================
+const _isCaptureMode = new URLSearchParams(window.location.search).get('mode') === 'capture';
+
+function initCaptureMode() {
+    console.log('[CaptureMode] Initializing capture window');
+
+    // Hide ALL UI except the preview video container and MG overlay
+    document.querySelectorAll('.header, .sidebar, .timeline-container, .progress-container, .toolbar, .startup-overlay, #notif-center, #video-controls, .preview-zoom-bar, #preview-placeholder').forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+
+    // Make preview fill the window at exactly 1920x1080
+    const previewContainer = document.getElementById('preview-container');
+    const videoContainer = document.getElementById('video-container');
+    if (previewContainer) {
+        previewContainer.style.cssText = 'position:fixed;top:0;left:0;width:1920px;height:1080px;margin:0;padding:0;overflow:hidden;z-index:9999;background:#000;';
+    }
+    if (videoContainer) {
+        videoContainer.classList.remove('hidden');
+        videoContainer.style.cssText = 'width:1920px;height:1080px;margin:0;padding:0;';
+    }
+
+    // Track which scenes are active to avoid redundant loadActiveScenes calls
+    let _captureLastSceneKey = '';
+    // Pre-cached media URLs (avoid IPC per frame)
+    const _captureMediaCache = {};
+
+    // Listen for plan data from main process
+    window.electronAPI.onCaptureLoadPlan(async (planData) => {
+        console.log('[CaptureMode] Received plan data');
+        try {
+            state.videoPlan = planData;
+
+            const plan = planData;
+            state.scenes = plan.scenes || [];
+            state.motionGraphics = plan.motionGraphics || [];
+            state.transitions = plan.transitions || [];
+            state.totalDuration = plan.totalDuration || 0;
+            state.fps = plan.fps || 30;
+            state.mgEnabled = plan.mgEnabled !== false; // enable MGs by default
+            state.mgStyle = plan.mgStyle || 'clean';
+
+            // Assign trackIds if missing
+            state.scenes.forEach((s, i) => {
+                if (!s.trackId) s.trackId = s.isMGScene ? 'video-track-3' : 'video-track-1';
+                if (s.index === undefined) s.index = i;
+            });
+
+            // Pre-cache ALL media URLs upfront (avoids per-frame IPC)
+            console.log('[CaptureMode] Pre-caching media URLs for', state.scenes.length, 'scenes');
+            for (const scene of state.scenes) {
+                if (scene.isMGScene || scene.disabled) continue;
+                const idx = scene.index !== undefined ? scene.index : state.scenes.indexOf(scene);
+                try {
+                    const url = await getCachedMediaUrl(idx, scene.mediaExtension);
+                    _captureMediaCache[idx] = url;
+                    console.log(`[CaptureMode] Cached scene ${idx}: ${url ? url.substring(url.lastIndexOf('/') + 1) : 'null'}`);
+                } catch (e) {
+                    console.warn(`[CaptureMode] Failed to cache scene ${idx}:`, e.message);
+                }
+            }
+
+            // Pre-load all video elements so they're ready for seeking
+            console.log('[CaptureMode] Pre-loading video elements...');
+            const videoLoadPromises = [];
+            for (const scene of state.scenes) {
+                if (scene.isMGScene || scene.disabled || scene.mediaType === 'image') continue;
+                const idx = scene.index !== undefined ? scene.index : state.scenes.indexOf(scene);
+                const url = _captureMediaCache[idx];
+                if (!url) continue;
+                const trackNum = scene.trackId?.match(/video-track-(\d)/)?.[1] || '1';
+                const vid = elements[`videoTrack${trackNum}`];
+                if (!vid) continue;
+                // Load and wait for ready
+                videoLoadPromises.push(new Promise((resolve) => {
+                    if (vid._loadedUrl === url && vid.readyState >= 2) { resolve(); return; }
+                    vid.src = url;
+                    vid._loadedUrl = url;
+                    vid.preload = 'auto';
+                    vid.muted = true;
+                    const onReady = () => { vid.removeEventListener('canplaythrough', onReady); resolve(); };
+                    vid.addEventListener('canplaythrough', onReady);
+                    setTimeout(resolve, 10000); // 10s max wait
+                    vid.load();
+                }));
+            }
+            await Promise.all(videoLoadPromises);
+
+            console.log('[CaptureMode] All media ready, signaling capture-ready');
+            window.electronAPI.sendCaptureReady();
+        } catch (e) {
+            console.error('[CaptureMode] Error loading plan:', e);
+            window.electronAPI.sendCaptureReady();
+        }
+    });
+
+    // Listen for frame seek requests — OPTIMIZED: only do full scene load on scene change
+    window.electronAPI.onCaptureSeekFrame(async (data) => {
+        const { frame, fps } = data;
+        const timeSec = frame / fps;
+
+        try {
+            state.currentTime = timeSec;
+            state.fps = fps;
+
+            // Check which scenes are active at this time
+            const activeScenes = getActiveScenesAtTime(timeSec);
+            const sceneKey = activeScenes.map(({ index }) => index).join(',');
+
+            // Only do full loadActiveScenes when the active scene SET changes
+            if (sceneKey !== _captureLastSceneKey) {
+                _captureLastSceneKey = sceneKey;
+                await loadActiveScenes(activeScenes);
+                // After scene change, wait for paint
+                await new Promise(r => requestAnimationFrame(r));
+            }
+
+            // Quick-seek active video elements to exact frame time
+            const seekPromises = [];
+            for (const { scene } of activeScenes) {
+                if (scene.isMGScene || scene.disabled || scene.mediaType === 'image') continue;
+                const trackNum = scene.trackId?.match(/video-track-(\d)/)?.[1] || '1';
+                const vid = elements[`videoTrack${trackNum}`];
+                if (!vid || vid.readyState < 2) continue;
+
+                const sceneTime = (timeSec - scene.startTime) + (scene.mediaOffset || 0);
+                // Only seek if more than half a frame off
+                if (Math.abs(vid.currentTime - sceneTime) > 0.5 / fps) {
+                    seekPromises.push(new Promise((resolve) => {
+                        vid.addEventListener('seeked', resolve, { once: true });
+                        setTimeout(resolve, 500); // 500ms timeout (not 2s)
+                        vid.currentTime = sceneTime;
+                    }));
+                }
+            }
+            if (seekPromises.length > 0) {
+                await Promise.all(seekPromises);
+            }
+
+            // Update Ken Burns / transforms for images at current time
+            for (const { scene } of activeScenes) {
+                if (scene.mediaType !== 'image' || scene.isMGScene) continue;
+                const trackNum = scene.trackId?.match(/video-track-(\d)/)?.[1] || '1';
+                const img = elements[`imgTrack${trackNum}`];
+                if (img) updateKenBurnsTransform(img, scene);
+            }
+
+            // Update MG overlays (track 2) — they compute animation from state.currentTime
+            // Force bypass throttle by clearing last-active cache (capture needs every frame)
+            _mgLastActiveIds = '';
+            updateMGOverlay();
+
+            // Single RAF for CSS repaint
+            await new Promise(r => requestAnimationFrame(r));
+
+            window.electronAPI.sendCaptureFrameReady();
+        } catch (e) {
+            console.error('[CaptureMode] Error seeking frame:', e);
+            window.electronAPI.sendCaptureFrameReady();
+        }
+    });
+}
+
 async function init() {
+    // Check if we're in capture mode (hidden window for Preview Capture renderer)
+    if (_isCaptureMode) {
+        initCaptureMode();
+        console.log('🎬 YTA Empire 2 Capture Window Ready');
+        return;
+    }
+
     // Add error handlers on video elements to catch loading failures (A and B buffers)
     [elements.videoTrack1, elements.videoTrack2, elements.videoTrack3,
     elements.videoTrack1B, elements.videoTrack2B, elements.videoTrack3B].forEach((video, i) => {
@@ -608,6 +782,13 @@ function setupEventListeners() {
             state.mgEnabled = elements.mgEnabled.checked;
             state.mutedTracks['mg-track'] = !state.mgEnabled;
             renderTimeline();
+            saveSettings();
+        });
+    }
+    // Fast Native MGs toggle
+    if (elements.fastNativeMGs) {
+        elements.fastNativeMGs.addEventListener('change', () => {
+            state.fastNativeMGs = elements.fastNativeMGs.checked;
             saveSettings();
         });
     }
@@ -5550,6 +5731,44 @@ async function loadPlanIntoCompositor() {
 }
 
 /**
+ * Run Preview Capture renderer — pixel-perfect HTML preview capture.
+ * Creates hidden BrowserWindow, captures each frame via capturePage(), encodes with NVENC.
+ */
+async function renderVideoPreviewCapture() {
+    try {
+        const plan = state.videoPlan;
+        if (!plan || !plan.scenes || plan.scenes.length === 0) {
+            showToast('No video plan loaded — cannot render', 'error');
+            return { success: false, error: 'No video plan' };
+        }
+
+        const fps = plan.fps || 30;
+        const { inSec, outSec } = getRenderRange();
+        const fullDuration = plan.totalDuration || state.totalDuration || 10;
+        const renderInSec = Math.min(inSec, fullDuration);
+        const renderOutSec = Math.min(outSec, fullDuration);
+
+        const rangeLabel = (state.inPoint !== null || state.outPoint !== null)
+            ? ` [${formatTime(renderInSec)}→${formatTime(renderOutSec)}]` : '';
+
+        updateProgress(10, `Starting Preview Capture renderer${rangeLabel}...`);
+
+        // Send the full plan + render range to main process
+        const result = await window.electronAPI.runRenderPreviewCapture({
+            plan: plan,
+            fps,
+            inPoint: renderInSec,
+            outPoint: renderOutSec,
+        });
+
+        return result;
+    } catch (e) {
+        console.error('[PreviewCapture] Error:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
  * Run Native D3D11 + NVENC export — builds RenderPlan from video plan.
  * Milestone D1: eligibility gate + image-only RenderPlan builder.
  */
@@ -5589,6 +5808,7 @@ async function renderVideoNative() {
                 scenes: plan.scenes,
                 scriptContext: plan.scriptContext || {},
                 fps: plan.fps || 30,
+                fastNativeMGs: state.fastNativeMGs,
             });
 
             if (!mgResult.ok) {
@@ -5652,11 +5872,31 @@ async function renderVideoNative() {
             const userScale = scene.scale !== undefined ? scene.scale : 1;
             const userTX = (scene.posX || 0) / 100 * width;
             const userTY = (scene.posY || 0) / 100 * height;
+            const sf = Math.round(scene.startTime * fps);
+            const ef = Math.round(scene.endTime * fps);
+
+            // Blur (Duplicate) background: insert a scaled-up cover copy behind the main image
+            if (scene.background === 'blur') {
+                addLayer({
+                    type: 'image',
+                    mediaPath: scene.mediaFile,
+                    startFrame: sf, endFrame: ef,
+                    trackNum: 1,  // behind main content
+                    fitMode: 'cover',
+                    scaleX: 1.3, scaleY: 1.3,
+                    scaleXEnd: 1.3, scaleYEnd: 1.3,
+                    translateX: 0, translateY: 0,
+                    translateXEnd: 0, translateYEnd: 0,
+                    rotationRad: 0,
+                    opacity: 0.7,
+                    anchorX: 0.5, anchorY: 0.5,
+                });
+            }
+
             addLayer({
                 type: 'image',
                 mediaPath: scene.mediaFile,
-                startFrame: Math.round(scene.startTime * fps),
-                endFrame: Math.round(scene.endTime * fps),
+                startFrame: sf, endFrame: ef,
                 trackNum: 2,
                 fitMode: scene.fitMode || 'cover',
                 translateX: userTX + kb.txStart,
@@ -5685,6 +5925,26 @@ async function renderVideoNative() {
             const userScale = scene.scale !== undefined ? scene.scale : 1;
             const userTX = (scene.posX || 0) / 100 * width;
             const userTY = (scene.posY || 0) / 100 * height;
+
+            // Blur (Duplicate) background: insert a scaled-up cover copy behind the main video
+            if (scene.background === 'blur') {
+                addLayer({
+                    type: 'video',
+                    mediaPath: scene.mediaFile,
+                    startFrame: absStart, endFrame: absEnd,
+                    trackNum: 1,
+                    fitMode: 'cover',
+                    trimStartSec: (scene.trimStart || 0) + trimAdjust,
+                    scaleX: 1.3, scaleY: 1.3,
+                    scaleXEnd: 1.3, scaleYEnd: 1.3,
+                    translateX: 0, translateY: 0,
+                    translateXEnd: 0, translateYEnd: 0,
+                    rotationRad: 0,
+                    opacity: 0.7,
+                    anchorX: 0.5, anchorY: 0.5,
+                });
+            }
+
             addLayer({
                 type: 'video',
                 mediaPath: scene.mediaFile,
@@ -5895,8 +6155,11 @@ async function renderVideo() {
         const useFFmpeg = rendererValue === 'ffmpeg';
         const useWebGL2 = rendererValue === 'webgl2';
         const useNative = rendererValue === 'native';
+        const usePreviewCapture = rendererValue === 'preview-capture';
 
-        if (useNative) {
+        if (usePreviewCapture) {
+            updateProgress(5, 'Starting Preview Capture (pixel-perfect) render...');
+        } else if (useNative) {
             updateProgress(5, 'Starting Native D3D11 + NVENC render...');
         } else if (useWebGL2) {
             updateProgress(5, 'Starting WebGL2 WYSIWYG render...');
@@ -5905,7 +6168,9 @@ async function renderVideo() {
         }
 
         let result;
-        if (useNative) {
+        if (usePreviewCapture) {
+            result = await renderVideoPreviewCapture();
+        } else if (useNative) {
             result = await renderVideoNative();
         } else if (useWebGL2) {
             result = await renderVideoWebGL2();
@@ -6230,6 +6495,7 @@ function saveSettings() {
         sfxEnabled: state.sfxEnabled,
         sfxVolume: state.sfxVolume,
         mgEnabled: state.mgEnabled,
+        fastNativeMGs: state.fastNativeMGs,
         subtitlesEnabled: state.subtitlesEnabled,
         aiInstructions: state.aiInstructions,
         mutedTracks: state.mutedTracks
@@ -6279,6 +6545,8 @@ function loadSettings() {
             // Restore Motion Graphics settings
             state.mgEnabled = s.mgEnabled !== undefined ? s.mgEnabled : true;
             if (elements.mgEnabled) elements.mgEnabled.checked = state.mgEnabled;
+            state.fastNativeMGs = s.fastNativeMGs !== undefined ? s.fastNativeMGs : true;
+            if (elements.fastNativeMGs) elements.fastNativeMGs.checked = state.fastNativeMGs;
             // Restore Subtitles setting
             state.subtitlesEnabled = s.subtitlesEnabled !== undefined ? s.subtitlesEnabled : false;
             if (elements.subtitlesEnabled) elements.subtitlesEnabled.checked = state.subtitlesEnabled;
@@ -6327,6 +6595,8 @@ function applyProjectSettings(s) {
         // MG
         state.mgEnabled = s.mgEnabled !== undefined ? s.mgEnabled : true;
         if (elements.mgEnabled) elements.mgEnabled.checked = state.mgEnabled;
+        state.fastNativeMGs = s.fastNativeMGs !== undefined ? s.fastNativeMGs : true;
+        if (elements.fastNativeMGs) elements.fastNativeMGs.checked = state.fastNativeMGs;
         // Subtitles
         state.subtitlesEnabled = s.subtitlesEnabled !== undefined ? s.subtitlesEnabled : false;
         if (elements.subtitlesEnabled) elements.subtitlesEnabled.checked = state.subtitlesEnabled;

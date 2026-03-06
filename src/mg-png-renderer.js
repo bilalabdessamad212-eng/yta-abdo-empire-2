@@ -22,7 +22,7 @@ const {
 } = require('./canvas-mg-renderer');
 const { getStyle, MG_BACKGROUNDS } = require('./mg-style-utils');
 
-const SUPERSAMPLE = 2;
+const SUPERSAMPLE = 1;  // 1x = native res, avoids OOM (2x = 4x memory per frame)
 const S = SUPERSAMPLE;
 
 // Tile sizes for overlay vs fullscreen MGs
@@ -34,10 +34,17 @@ const REMOTION_CONCURRENCY = 1;
 
 function log(msg) { console.log(`[MGPngRenderer] ${msg}`); }
 
+// Cancellation flag — set by cancelMGRender(), checked in render loops
+let _cancelled = false;
+function cancelMGRender() { _cancelled = true; }
+
+// Max MG duration cap (seconds) — prevents runaway renders from bad data
+const MAX_MG_DURATION_SEC = 30;
+
 /**
  * Compute deterministic hash for MG job — same inputs = same hash = cached.
  */
-function computeJobHash(mg, fps, tileW, tileH, isFullScreen) {
+function computeJobHash(mg, fps, tileW, tileH, isFullScreen, renderer = 'canvas') {
     const data = JSON.stringify({
         type: mg.type,
         text: mg.text || '',
@@ -47,7 +54,7 @@ function computeJobHash(mg, fps, tileW, tileH, isFullScreen) {
         duration: mg.duration || 3,
         animationSpeed: mg.animationSpeed || 1.0,
         data: mg.data || null,
-        fps, tileW, tileH, isFullScreen,
+        fps, tileW, tileH, isFullScreen, renderer,
     });
     return crypto.createHash('sha1').update(data).digest('hex').slice(0, 16);
 }
@@ -64,7 +71,13 @@ async function renderCanvasMG(mg, outDir, fps, scriptContext, tileW, tileH, isFu
 
     mg._animationSpeed = mg.animationSpeed || scriptContext.mgAnimationSpeed || 1.0;
     const s = getStyle(mg, scriptContext);
-    const totalFrames = Math.max(1, Math.round((mg.duration || 3) * fps));
+    const rawDuration = mg.duration || 3;
+    const clampedDuration = Math.min(rawDuration, MAX_MG_DURATION_SEC);
+    if (rawDuration > MAX_MG_DURATION_SEC) {
+        log(`  [CanvasMG] WARNING: ${mg.type} duration ${rawDuration}s capped to ${MAX_MG_DURATION_SEC}s`);
+    }
+    const totalFrames = Math.max(1, Math.round(clampedDuration * fps));
+    log(`  [CanvasMG] ${mg.type} → ${totalFrames} frames (${clampedDuration.toFixed(1)}s) @ ${tileW}x${tileH}`);
     const renderFn = CANVAS_RENDERERS[mg.type];
 
     if (!renderFn) {
@@ -121,6 +134,12 @@ async function renderCanvasMG(mg, outDir, fps, scriptContext, tileW, tileH, isFu
 
         const frameName = `frame_${String(frame).padStart(6, '0')}.png`;
         fs.writeFileSync(path.join(outDir, frameName), pngBuf);
+
+        // Yield to event loop every 10 frames to prevent main process freeze
+        if (frame % 10 === 9) {
+            await new Promise(r => setImmediate(r));
+            if (_cancelled) throw new Error('MG render cancelled');
+        }
     }
 
     return totalFrames;
@@ -225,12 +244,14 @@ async function runWithConcurrency(jobs, limit) {
  * @returns {{ layers: Array<{ seqDir, seqPattern, seqFrameCount, seqLocalStart, tileW, tileH, isFullScreen, mgIndex, startFrame, endFrame, trackNum }> }}
  */
 async function renderMGsToPNG(opts, cacheDir, progressCb = () => {}) {
+    _cancelled = false;  // Reset cancellation flag at start
     const {
         motionGraphics = [],
         mgScenes = [],
         scenes = [],
         scriptContext = {},
         fps = 30,
+        fastNativeMGs = true,
     } = opts;
 
     if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
@@ -238,13 +259,20 @@ async function renderMGsToPNG(opts, cacheDir, progressCb = () => {}) {
     // Build job list from overlay MGs + fullscreen MG scenes
     const jobs = [];
 
+    // Determine renderer per MG type
+    function getRenderer(mgType) {
+        if (REMOTION_ONLY_TYPES.has(mgType)) return 'remotion';
+        return fastNativeMGs ? 'canvas' : 'remotion';
+    }
+
     // Overlay MGs
     for (let i = 0; i < motionGraphics.length; i++) {
         const mg = { ...motionGraphics[i] };
         const isFullScreen = false;
+        const renderer = getRenderer(mg.type);
         const tile = getTileDimensions(mg, isFullScreen);
-        const hash = computeJobHash(mg, fps, tile.w, tile.h, isFullScreen);
-        jobs.push({ mg, isFullScreen, hash, tile, category: 'overlay', index: i });
+        const hash = computeJobHash(mg, fps, tile.w, tile.h, isFullScreen, renderer);
+        jobs.push({ mg, isFullScreen, hash, tile, category: 'overlay', index: i, renderer });
     }
 
     // Fullscreen MG scenes
@@ -257,9 +285,10 @@ async function renderMGsToPNG(opts, cacheDir, progressCb = () => {}) {
             delete mg[key];
         }
         const isFullScreen = true;
+        const renderer = getRenderer(mg.type);
         const tile = getTileDimensions(mg, isFullScreen);
-        const hash = computeJobHash(mg, fps, tile.w, tile.h, isFullScreen);
-        jobs.push({ mg, isFullScreen, hash, tile, category: 'fullscreen', index: i });
+        const hash = computeJobHash(mg, fps, tile.w, tile.h, isFullScreen, renderer);
+        jobs.push({ mg, isFullScreen, hash, tile, category: 'fullscreen', index: i, renderer });
     }
 
     // Also check scenes array for isMGScene scenes not in mgScenes
@@ -277,12 +306,15 @@ async function renderMGsToPNG(opts, cacheDir, progressCb = () => {}) {
             delete mg[key];
         }
         const isFullScreen = true;
+        const renderer = getRenderer(mg.type);
         const tile = getTileDimensions(mg, isFullScreen);
-        const hash = computeJobHash(mg, fps, tile.w, tile.h, isFullScreen);
-        jobs.push({ mg, isFullScreen, hash, tile, category: 'fullscreen', index: jobs.filter(j => j.category === 'fullscreen').length });
+        const hash = computeJobHash(mg, fps, tile.w, tile.h, isFullScreen, renderer);
+        jobs.push({ mg, isFullScreen, hash, tile, category: 'fullscreen', index: jobs.filter(j => j.category === 'fullscreen').length, renderer });
     }
 
-    log(`${jobs.length} MG jobs (${jobs.filter(j => !j.isFullScreen).length} overlay, ${jobs.filter(j => j.isFullScreen).length} fullscreen)`);
+    const canvasCount = jobs.filter(j => j.renderer === 'canvas').length;
+    const remotionCount = jobs.filter(j => j.renderer === 'remotion').length;
+    log(`${jobs.length} MG jobs (${canvasCount} canvas, ${remotionCount} remotion, fastNative=${fastNativeMGs})`);
 
     // Check cache and partition into canvas vs Remotion
     const canvasJobs = [];
@@ -308,7 +340,7 @@ async function renderMGsToPNG(opts, cacheDir, progressCb = () => {}) {
         // Cache miss — need to render
         if (!fs.existsSync(jobDir)) fs.mkdirSync(jobDir, { recursive: true });
 
-        if (canRenderWithCanvas(job.mg.type)) {
+        if (job.renderer === 'canvas') {
             canvasJobs.push({ ...job, jobDir });
         } else {
             remotionJobs.push({ ...job, jobDir });
@@ -416,4 +448,4 @@ async function renderMGsToPNG(opts, cacheDir, progressCb = () => {}) {
     return { layers };
 }
 
-module.exports = { renderMGsToPNG, getTileDimensions, computeJobHash };
+module.exports = { renderMGsToPNG, getTileDimensions, computeJobHash, cancelMGRender };

@@ -178,8 +178,12 @@ class Compositor {
         const mediaScenes = this.sceneGraph.scenes.filter(s => !s.isMGScene && s.mediaType !== 'motion-graphic');
         await this._preloadMedia(mediaScenes);
 
-        // Bake-and-Play: precompute MG hashes (sync lookup in render loop)
-        await this._precomputeMGHashes(plan);
+        // Bake-and-Play: precompute MG hashes (non-critical — don't break loadPlan on failure)
+        try {
+            await this._precomputeMGHashes(plan);
+        } catch (e) {
+            console.warn('[Compositor] Bake-and-Play hash init failed (falling back to live render):', e.message);
+        }
 
         console.log('[Compositor] Plan loaded:', this.sceneGraph.totalFrames, 'frames,',
             mediaScenes.length, 'media scenes,', this.sceneGraph.motionGraphics.length, 'MG overlays');
@@ -514,7 +518,6 @@ class Compositor {
         this._mgBakeReady = false;
 
         const fps = this.fps;
-        const tileW = 1920, tileH = 1080;
         const api = window.electronAPI;
         if (!api || !api.checkMGCache) {
             console.log('[Compositor] No electronAPI.checkMGCache — bake-and-play disabled');
@@ -537,6 +540,10 @@ class Compositor {
         if (mgObjects.length === 0) return;
 
         const checkPromises = mgObjects.map(async ({ mg, isFullScreen }) => {
+            // Must match mg-png-renderer.js:computeJobHash() EXACTLY
+            // Overlay MGs use 1024×256 tile, fullscreen use 1920×1080
+            const mgTileW = isFullScreen ? 1920 : 1024;
+            const mgTileH = isFullScreen ? 1080 : 256;
             const data = JSON.stringify({
                 type: mg.type,
                 text: mg.text || '',
@@ -546,7 +553,8 @@ class Compositor {
                 duration: mg.duration || 3,
                 animationSpeed: mg.animationSpeed || 1.0,
                 data: mg.data || null,
-                fps, tileW, tileH, isFullScreen,
+                fps, tileW: mgTileW, tileH: mgTileH, isFullScreen,
+                renderer: 'canvas',
             });
             const hash = await this._sha1(data);
             const shortHash = hash.slice(0, 16);
@@ -599,6 +607,7 @@ class Compositor {
             scenes: this.sceneGraph.scenes,
             scriptContext: this._scriptContext,
             fps: this.fps,
+            fastNativeMGs: document.getElementById('fast-native-mgs')?.checked ?? true,
         };
 
         api.preRenderMGsPNG(bakeOpts).then(async () => {

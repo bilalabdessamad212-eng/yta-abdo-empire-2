@@ -750,13 +750,30 @@ let activeProcess = null;
 let activeProcessType = null; // 'build' or 'render'
 let processCancelled = false;
 
+// Preview Capture state (declared here so cancel-process can access)
+let _previewCaptureWin = null;
+let _previewCaptureCancelled = false;
+
 ipcMain.handle('cancel-process', async () => {
+    // Cancel Preview Capture if active
+    _previewCaptureCancelled = true;
+    if (_previewCaptureWin && !_previewCaptureWin.isDestroyed()) {
+        _previewCaptureWin.close();
+        _previewCaptureWin = null;
+    }
+
     // Cancel FFmpeg render if active (in-process async, no child process)
     let ffmpegCancelled = false;
     try {
         const { cancelRender } = require('./src/ffmpeg-renderer');
         cancelRender();
         ffmpegCancelled = true;
+    } catch (e) { /* module may not be loaded */ }
+
+    // Cancel MG PNG pre-render if active
+    try {
+        const { cancelMGRender } = require('./src/mg-png-renderer');
+        cancelMGRender();
     } catch (e) { /* module may not be loaded */ }
 
     if (activeProcess) {
@@ -2149,6 +2166,249 @@ async function _webglMuxAudio(exp) {
         });
     });
 }
+
+// ========================================
+// Preview Capture Renderer — Pixel-Perfect HTML Capture
+// ========================================
+
+ipcMain.handle('run-render-preview-capture', async (event, opts) => {
+    const { plan, fps, inPoint, outPoint } = opts;
+    _previewCaptureCancelled = false;
+
+    const totalDuration = plan.totalDuration || 10;
+    const renderIn = inPoint != null ? inPoint : 0;
+    const renderOut = outPoint != null ? outPoint : totalDuration;
+    const startFrame = Math.round(renderIn * fps);
+    const endFrame = Math.round(renderOut * fps);
+    const totalFrames = endFrame - startFrame;
+
+    const width = plan.width || 1920;
+    const height = plan.height || 1080;
+
+    console.log(`[PreviewCapture] Starting: ${width}x${height} @ ${fps}fps, frames ${startFrame}-${endFrame} (${totalFrames} total)`);
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('render-progress', { percent: 5, message: 'Creating capture window...' });
+    }
+
+    try {
+        // 1. Create hidden BrowserWindow
+        //    - DPI fix: detect scale factor so we can resize captured frames
+        //    - offscreen:false — GPU-accelerated video decoding + rendering
+        const { screen } = require('electron');
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const dpiScale = primaryDisplay.scaleFactor || 1;
+        console.log(`[PreviewCapture] DPI scale factor: ${dpiScale}`);
+
+        _previewCaptureWin = new BrowserWindow({
+            width,
+            height,
+            useContentSize: true,
+            show: false,
+            frame: false,
+            enableLargerThanScreen: true,
+            // Position off-screen (hidden windows get throttled by Chromium)
+            x: -3000,
+            y: -3000,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                preload: path.join(__dirname, 'preload.js'),
+                backgroundThrottling: false, // prevent Chromium from throttling
+            },
+        });
+
+        _previewCaptureWin.setContentSize(width, height);
+        _previewCaptureWin.webContents.setZoomFactor(1.0);
+        // Show off-screen so Chromium doesn't throttle rendering/video decoding
+        _previewCaptureWin.showInactive();
+
+        // 2. Load index.html in capture mode
+        const indexPath = path.join(__dirname, 'ui', 'index.html');
+        await _previewCaptureWin.loadFile(indexPath, { query: { mode: 'capture' } });
+        console.log('[PreviewCapture] Capture window loaded');
+
+        // 3. Send plan data and wait for capture-ready
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Capture window timed out waiting for ready')), 60000);
+            ipcMain.once('capture-ready', () => { clearTimeout(timeout); resolve(); });
+            _previewCaptureWin.webContents.send('capture-load-plan', plan);
+        });
+
+        if (_previewCaptureCancelled) {
+            _previewCaptureWin.close();
+            _previewCaptureWin = null;
+            return { success: false, error: 'Cancelled' };
+        }
+
+        console.log('[PreviewCapture] Capture window ready, starting FFmpeg encoder');
+
+        // 4. Start FFmpeg encoder
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const videoFile = path.join(TEMP_PATH, `capture-video-${timestamp}.mp4`);
+        const outputFile = path.join(OUTPUT_PATH, `video-${timestamp}.mp4`);
+
+        if (!fs.existsSync(OUTPUT_PATH)) fs.mkdirSync(OUTPUT_PATH, { recursive: true });
+        if (!fs.existsSync(TEMP_PATH)) fs.mkdirSync(TEMP_PATH, { recursive: true });
+
+        const useGpu = await probeNvencForWebGL();
+        const encArgs = useGpu
+            ? ['-c:v', 'h264_nvenc', '-preset', 'p4', '-b:v', '18M', '-maxrate:v', '24M', '-bufsize:v', '48M']
+            : ['-c:v', 'libx264', '-preset', 'medium', '-crf', '22'];
+
+        console.log(`[PreviewCapture] Encoder: ${useGpu ? 'NVENC' : 'libx264'}`);
+
+        const ffmpegProc = spawn(WEBGL_FFMPEG_PATH, [
+            '-y',
+            '-f', 'rawvideo',
+            '-pixel_format', 'bgra',
+            '-video_size', `${width}x${height}`,
+            '-framerate', String(fps),
+            '-i', 'pipe:0',
+            ...encArgs,
+            '-pix_fmt', 'yuv420p',
+            '-an',
+            videoFile
+        ], { stdio: ['pipe', 'ignore', 'pipe'] });
+
+        let ffmpegStderr = '';
+        ffmpegProc.stderr.on('data', (d) => { ffmpegStderr += d.toString(); });
+
+        let ffmpegExited = false;
+        ffmpegProc.on('close', () => { ffmpegExited = true; });
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('render-progress', { percent: 10, message: 'Capturing frames...' });
+        }
+
+        // 5. Frame loop — seek → wait → capture → write
+        //    Key optimization: register persistent listener, resolve via callback ref
+        const captureStart = Date.now();
+        let framesWritten = 0;
+        let _frameResolve = null;
+
+        // Single persistent listener instead of ipcMain.once per frame
+        const onFrameReady = () => { if (_frameResolve) { _frameResolve(); _frameResolve = null; } };
+        ipcMain.on('capture-frame-ready', onFrameReady);
+
+        try {
+            for (let frame = startFrame; frame < endFrame; frame++) {
+                if (_previewCaptureCancelled || ffmpegExited) break;
+
+                // Seek and wait for frame-ready signal
+                const seekOk = await new Promise((resolve) => {
+                    _frameResolve = () => resolve(true);
+                    setTimeout(() => { _frameResolve = null; resolve(false); }, 3000);
+                    _previewCaptureWin.webContents.send('capture-seek-frame', { frame, fps });
+                });
+
+                if (_previewCaptureCancelled || ffmpegExited) break;
+
+                // Capture the page — DPI-aware: resize if Windows scaling != 100%
+                const image = await _previewCaptureWin.webContents.capturePage();
+                let finalImage = image;
+                const imgSize = image.getSize();
+                if (imgSize.width !== width || imgSize.height !== height) {
+                    if (framesWritten === 0) {
+                        console.log(`[PreviewCapture] DPI resize: ${imgSize.width}x${imgSize.height} → ${width}x${height}`);
+                    }
+                    finalImage = image.resize({ width, height, quality: 'best' });
+                }
+                const bitmap = finalImage.toBitmap();
+                const canWrite = ffmpegProc.stdin.write(Buffer.from(bitmap));
+                if (!canWrite) await new Promise(r => ffmpegProc.stdin.once('drain', r));
+
+                framesWritten++;
+
+                // Progress every 30 frames (once per second at 30fps)
+                if (framesWritten % 30 === 0 || frame === endFrame - 1) {
+                    const elapsed = (Date.now() - captureStart) / 1000;
+                    const captureFps = (framesWritten / elapsed).toFixed(1);
+                    const eta = Math.round((totalFrames - framesWritten) / (framesWritten / elapsed));
+                    const pct = 10 + Math.round((framesWritten / totalFrames) * 80);
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('render-progress', {
+                            percent: pct,
+                            message: `Capturing: ${framesWritten}/${totalFrames} (${captureFps} fps, ~${eta}s left)`
+                        });
+                    }
+                }
+            }
+        } finally {
+            ipcMain.removeListener('capture-frame-ready', onFrameReady);
+        }
+
+        // 6. Finalize FFmpeg
+        console.log(`[PreviewCapture] Captured ${framesWritten} frames in ${((Date.now() - captureStart) / 1000).toFixed(1)}s`);
+
+        if (_previewCaptureCancelled) {
+            try {
+                if (process.platform === 'win32' && ffmpegProc.pid) {
+                    exec(`taskkill /pid ${ffmpegProc.pid} /f /t`, () => {});
+                } else {
+                    ffmpegProc.kill('SIGTERM');
+                }
+            } catch (_) { }
+            _previewCaptureWin.close();
+            _previewCaptureWin = null;
+            return { success: false, error: 'Cancelled' };
+        }
+
+        ffmpegProc.stdin.end();
+
+        const exitCode = await new Promise((resolve, reject) => {
+            if (ffmpegExited) { resolve(0); return; }
+            const timeout = setTimeout(() => {
+                try { ffmpegProc.kill('SIGTERM'); } catch (_) { }
+                reject(new Error('FFmpeg encoding timeout'));
+            }, 120000);
+
+            ffmpegProc.on('close', (code) => { clearTimeout(timeout); resolve(code); });
+            ffmpegProc.on('error', (err) => { clearTimeout(timeout); reject(err); });
+        });
+
+        if (exitCode !== 0) {
+            console.error(`[PreviewCapture] FFmpeg stderr: ${ffmpegStderr.slice(-500)}`);
+            throw new Error(`FFmpeg exited with code ${exitCode}`);
+        }
+
+        console.log(`[PreviewCapture] Video encoded: ${videoFile}`);
+
+        // 7. Close capture window
+        _previewCaptureWin.close();
+        _previewCaptureWin = null;
+
+        // 8. Mux audio
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('render-progress', { percent: 92, message: 'Muxing audio...' });
+        }
+
+        const finalOutput = await _webglMuxAudio({
+            videoFile,
+            outputFile,
+            audioTrimStartSec: renderIn > 0 ? renderIn : null,
+            audioTrimEndSec: renderOut < totalDuration ? renderOut : null,
+        });
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('render-progress', { percent: 100, message: 'Preview Capture complete!' });
+        }
+
+        const totalTime = ((Date.now() - captureStart) / 1000).toFixed(1);
+        const avgFps = (framesWritten / ((Date.now() - captureStart) / 1000)).toFixed(1);
+        console.log(`[PreviewCapture] Done! ${framesWritten} frames in ${totalTime}s (${avgFps} fps avg). Output: ${finalOutput}`);
+
+        return { success: true, outputPath: finalOutput };
+
+    } catch (err) {
+        console.error('[PreviewCapture] Error:', err.message);
+        if (_previewCaptureWin && !_previewCaptureWin.isDestroyed()) {
+            _previewCaptureWin.close();
+        }
+        _previewCaptureWin = null;
+        return { success: false, error: err.message };
+    }
+});
 
 // ========================================
 // V2 GPU-Native Export — IPC Handlers

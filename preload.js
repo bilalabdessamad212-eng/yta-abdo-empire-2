@@ -57,6 +57,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('run-render-ffmpeg');
     },
 
+    // Render video via Preview Capture (pixel-perfect HTML capture)
+    runRenderPreviewCapture: (opts) => {
+        return ipcRenderer.invoke('run-render-preview-capture', opts);
+    },
+
+    // Capture-mode IPC (used by hidden capture window only)
+    onCaptureLoadPlan: (cb) => ipcRenderer.on('capture-load-plan', (e, data) => cb(data)),
+    onCaptureSeekFrame: (cb) => ipcRenderer.on('capture-seek-frame', (e, data) => cb(data)),
+    sendCaptureReady: () => ipcRenderer.send('capture-ready'),
+    sendCaptureFrameReady: () => ipcRenderer.send('capture-frame-ready'),
+
     // Open output folder
     openOutputFolder: () => {
         return ipcRenderer.invoke('open-output-folder');

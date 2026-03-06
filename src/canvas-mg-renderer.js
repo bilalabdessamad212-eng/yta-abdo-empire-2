@@ -16,7 +16,7 @@ const FFMPEG_PATH = process.env.FFMPEG_PATH || 'C:\\ffmg\\bin\\ffmpeg.exe';
 // Without this, canvas text edges look jagged compared to browser-rendered Remotion.
 // We use ctx.scale(SUPERSAMPLE, SUPERSAMPLE) so all renderers work in logical 1920x1080
 // coordinates — no need to multiply individual pixel values.
-const SUPERSAMPLE = 2;
+const SUPERSAMPLE = 1;  // 1x = 1920x1080, avoids OOM (2x = 3840x2160 = ~33MB/frame)
 const S = SUPERSAMPLE;
 const W = 1920;   // logical width  (renderers use this)
 const H = 1080;   // logical height (renderers use this)
@@ -1385,10 +1385,12 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
         '-level', '3',
         '-an',
         outputPath
-    ], { stdio: ['pipe', 'pipe', 'pipe'] });
+    ], { stdio: ['pipe', 'ignore', 'pipe'] });  // ignore stdout to prevent deadlock
 
     let ffmpegError = '';
-    ffmpeg.stderr.on('data', d => { ffmpegError += d.toString(); });
+    ffmpeg.stderr.on('data', d => { ffmpegError += d.toString().slice(-2000); });
+
+    if (totalFrames > 30) console.log(`  [CanvasMG] ${mg.type}: rendering ${totalFrames} frames...`);
 
     for (let frame = 0; frame < totalFrames; frame++) {
         ctx.clearRect(0, 0, PW, PH);  // physical pixels, no transform active
@@ -1435,20 +1437,34 @@ async function renderMGToWebM(mg, outputPath, fps, scriptContext, isFullScreen) 
             console.log(`  [CanvasMG] Alpha diagnostic (${mg.type}): ${pctTransparent}% transparent pixels (${transparentPixels}/${total} sampled) — overlay should be mostly transparent`);
         }
 
+        // Check if FFmpeg died mid-render
+        if (ffmpeg.killed || ffmpeg.exitCode !== null) {
+            throw new Error(`FFmpeg exited early (code ${ffmpeg.exitCode}) at frame ${frame}/${totalFrames}: ${ffmpegError.slice(-300)}`);
+        }
+
         const canWrite = ffmpeg.stdin.write(buf);
         if (!canWrite) {
-            await new Promise(resolve => ffmpeg.stdin.once('drain', resolve));
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => { resolve(); }, 10000); // 10s timeout
+                ffmpeg.stdin.once('drain', () => { clearTimeout(timeout); resolve(); });
+                ffmpeg.once('error', () => { clearTimeout(timeout); resolve(); });
+            });
         }
     }
 
     ffmpeg.stdin.end();
 
     await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            ffmpeg.kill();
+            reject(new Error(`FFmpeg FFV1 encode timed out after stdin.end(): ${ffmpegError.slice(-300)}`));
+        }, 30000); // 30s timeout for finalization
         ffmpeg.on('close', code => {
+            clearTimeout(timeout);
             if (code === 0) resolve();
             else reject(new Error(`FFmpeg FFV1 encode failed (code ${code}): ${ffmpegError.slice(-500)}`));
         });
-        ffmpeg.on('error', reject);
+        ffmpeg.on('error', (err) => { clearTimeout(timeout); reject(err); });
     });
 }
 
@@ -1476,7 +1492,7 @@ async function renderAll(mgEntries, clipDir, fps, scriptContext, progressCb) {
     const fsCount = mgEntries.filter(e => e.isFullScreen).length;
     console.log(`  [CanvasMG] ${overlayCount} overlay MGs (transparent bg), ${fsCount} fullscreen MGs (opaque bg)`);
 
-    const MG_PARALLEL = 4;
+    const MG_PARALLEL = 1;
     let done = 0;
 
     const tasks = mgEntries.map((entry) => async () => {
